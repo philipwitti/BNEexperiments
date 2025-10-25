@@ -2,6 +2,7 @@ use super::{super::OrderedVocabIter, trainer::BneTrainer, Error, Word, Ngram};
 use crate::tokenizer::{Model, Result, Token};
 use crate::utils::cache::{Cache, DEFAULT_CACHE_CAPACITY, MAX_LENGTH};
 use crate::utils::iter::ResultShunt;
+use ahash::AHashMap;
 use serde_json::Value;
 use std::borrow::Cow;
 use std::{
@@ -12,9 +13,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub type Vocab = HashMap<String, u32>;
-type VocabR = HashMap<u32, String>;
-pub type MergeMap = HashMap<Ngram, (u32, u32)>;
+pub type Vocab = AHashMap<String, u32>;
+type VocabR = AHashMap<u32, String>;
+pub type MergeMap = AHashMap<Ngram, (u32, u32)>;
 //pub type Merges = Vec<(String, String)>;
 pub type Merges = Vec<Vec<String>>;
 
@@ -42,7 +43,7 @@ impl Default for BneBuilder {
         Self {
             config: Config {
                 files: None,
-                vocab: HashMap::new(),
+                vocab: AHashMap::new(),
                 merges: vec![],
                 cache_capacity: DEFAULT_CACHE_CAPACITY,
                 dropout: None,
@@ -325,7 +326,7 @@ impl BNE {
         let mut buffer = String::new();
         vocab_file.read_to_string(&mut buffer)?;
         let json: Value = serde_json::from_str(&buffer)?;
-        let mut vocab = HashMap::new();
+        let mut vocab = AHashMap::new();
         match json {
             Value::Object(m) => {
                 for (token, id) in m {
@@ -362,8 +363,8 @@ impl BNE {
         }
     }
 
-    pub fn get_vocab(&self) -> Vocab {
-        self.vocab.clone()
+    pub fn get_vocab(&self) -> HashMap<String, u32> {
+        self.vocab.clone().into_iter().collect()
     }
 
     pub fn get_unk_token(&self) -> &Option<String> {
@@ -495,7 +496,7 @@ impl Model for BNE {
     type Trainer = BneTrainer;
 
     fn get_vocab(&self) -> HashMap<String, u32> {
-        self.vocab.clone()
+        self.vocab.clone().into_iter().collect()
     }
 
     fn get_vocab_size(&self) -> usize {

@@ -9,12 +9,8 @@ use pyo3::exceptions;
 use pyo3::prelude::*;
 use pyo3::types::*;
 use serde::{Deserialize, Serialize};
-<<<<<<< HEAD
-use tk::models::bpe::{BpeBuilder, Merges as MergesBPE, Vocab as VocabBPE, BPE};
-use tk::models::bne::{BneBuilder, Merges as MergesBNE, Vocab as VocabBNE, BNE};
-=======
-use tk::models::bpe::{BpeBuilder, Merges, BPE};
->>>>>>> main
+use tk::models::bpe::{BpeBuilder, Merges as MergesBPE, BPE};
+use tk::models::bne::{BneBuilder, Merges as MergesBNE, BNE};
 use tk::models::unigram::Unigram;
 use tk::models::wordlevel::WordLevel;
 use tk::models::wordpiece::{WordPiece, WordPieceBuilder};
@@ -351,13 +347,8 @@ macro_rules! setter {
 }
 
 #[derive(FromPyObject)]
-<<<<<<< HEAD
 enum PyVocabBPE {
-    Vocab(VocabBPE),
-=======
-enum PyVocab {
     Vocab(HashMap<String, u32>),
->>>>>>> main
     Filename(String),
 }
 
@@ -464,12 +455,8 @@ impl PyBPE {
         let mut builder = BPE::builder();
         if let (Some(vocab), Some(merges)) = (vocab, merges) {
             match (vocab, merges) {
-<<<<<<< HEAD
                 (PyVocabBPE::Vocab(vocab), PyMergesBPE::Merges(merges)) => {
-=======
-                (PyVocab::Vocab(vocab), PyMerges::Merges(merges)) => {
                     let vocab: AHashMap<_, _> = vocab.into_iter().collect();
->>>>>>> main
                     builder = builder.vocab_and_merges(vocab, merges);
                 }
                 (PyVocabBPE::Filename(vocab_filename), PyMergesBPE::Filename(merges_filename)) => {
@@ -510,13 +497,8 @@ impl PyBPE {
     ///         The vocabulary and merges loaded into memory
     #[staticmethod]
     #[pyo3(text_signature = "(self, vocab, merges)")]
-<<<<<<< HEAD
-    fn read_file(vocab: &str, merges: &str) -> PyResult<(VocabBPE, MergesBPE)> {
-        BPE::read_file(vocab, merges).map_err(|e| {
-=======
-    fn read_file(vocab: &str, merges: &str) -> PyResult<(HashMap<String, u32>, Merges)> {
+    fn read_file(vocab: &str, merges: &str) -> PyResult<(HashMap<String, u32>, MergesBPE)> {
         let (vocab, merges) = BPE::read_file(vocab, merges).map_err(|e| {
->>>>>>> main
             exceptions::PyException::new_err(format!(
                 "Error while reading vocab & merges files: {e}"
             ))
@@ -698,7 +680,7 @@ macro_rules! setter {
 
 #[derive(FromPyObject)]
 enum PyVocabBNE {
-    Vocab(VocabBNE),
+    Vocab(HashMap<String, u32>),
     Filename(String),
 }
 #[derive(FromPyObject)]
@@ -805,6 +787,7 @@ impl PyBNE {
         if let (Some(vocab), Some(merges)) = (vocab, merges) {
             match (vocab, merges) {
                 (PyVocabBNE::Vocab(vocab), PyMergesBNE::Merges(merges)) => {
+                    let vocab: AHashMap<_, _> = vocab.into_iter().collect();
                     builder = builder.vocab_and_merges(vocab, merges);
                 }
                 (PyVocabBNE::Filename(vocab_filename), PyMergesBNE::Filename(merges_filename)) => {
@@ -845,13 +828,14 @@ impl PyBNE {
     ///         The vocabulary and merges loaded into memory
     #[staticmethod]
     #[pyo3(text_signature = "(self, vocab, merges)")]
-    fn read_file(vocab: &str, merges: &str) -> PyResult<(VocabBNE, MergesBNE)> {
-        BNE::read_file(vocab, merges).map_err(|e| {
+    fn read_file(vocab: &str, merges: &str) -> PyResult<(HashMap<String, u32>, MergesBNE)> {
+        let (vocab, merges) = BNE::read_file(vocab, merges).map_err(|e| {
             exceptions::PyException::new_err(format!(
-                "Error while reading vocab & merges files: {}",
-                e
+                "Error while reading vocab & merges files: {e}"
             ))
-        })
+        })?;
+        let vocab = vocab.into_iter().collect();
+        Ok((vocab, merges))
     }
 
     /// Instantiate a BNE model from the given files.
@@ -885,8 +869,9 @@ impl PyBNE {
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Py<Self>> {
         let (vocab, merges) = BNE::read_file(vocab, merges).map_err(|e| {
-            exceptions::PyException::new_err(format!("Error while reading BNE files: {}", e))
+            exceptions::PyException::new_err(format!("Error while reading BNE files: {e}"))
         })?;
+        let vocab = vocab.into_iter().collect();
         Py::new(
             py,
             PyBNE::new(
@@ -1017,12 +1002,8 @@ impl PyWordPiece {
 
         if let Some(vocab) = vocab {
             match vocab {
-<<<<<<< HEAD
                 PyVocabBPE::Vocab(vocab) => {
-=======
-                PyVocab::Vocab(vocab) => {
                     let vocab: AHashMap<_, _> = vocab.into_iter().collect();
->>>>>>> main
                     builder = builder.vocab(vocab);
                 }
                 PyVocabBPE::Filename(vocab_filename) => {
@@ -1054,18 +1035,11 @@ impl PyWordPiece {
     ///     :obj:`Dict[str, int]`: The vocabulary as a :obj:`dict`
     #[staticmethod]
     #[pyo3(text_signature = "(vocab)")]
-<<<<<<< HEAD
-    fn read_file(vocab: &str) -> PyResult<VocabBPE> {
-        WordPiece::read_file(vocab).map_err(|e| {
-            exceptions::PyException::new_err(format!("Error while reading WordPiece file: {}", e))
-        })
-=======
     fn read_file(vocab: &str) -> PyResult<HashMap<String, u32>> {
         let vocab = WordPiece::read_file(vocab).map_err(|e| {
             exceptions::PyException::new_err(format!("Error while reading WordPiece file: {e}"))
         })?;
         Ok(vocab.into_iter().collect())
->>>>>>> main
     }
 
     /// Instantiate a WordPiece model from the given file
@@ -1141,12 +1115,8 @@ impl PyWordLevel {
 
         if let Some(vocab) = vocab {
             match vocab {
-<<<<<<< HEAD
                 PyVocabBPE::Vocab(vocab) => {
-=======
-                PyVocab::Vocab(vocab) => {
                     let vocab = vocab.into_iter().collect();
->>>>>>> main
                     builder = builder.vocab(vocab);
                 }
                 PyVocabBPE::Filename(vocab_filename) => {
@@ -1187,19 +1157,12 @@ impl PyWordLevel {
     ///     :obj:`Dict[str, int]`: The vocabulary as a :obj:`dict`
     #[staticmethod]
     #[pyo3(text_signature = "(vocab)")]
-<<<<<<< HEAD
-    fn read_file(vocab: &str) -> PyResult<VocabBPE> {
-        WordLevel::read_file(vocab).map_err(|e| {
-            exceptions::PyException::new_err(format!("Error while reading WordLevel file: {}", e))
-        })
-=======
     fn read_file(vocab: &str) -> PyResult<HashMap<String, u32>> {
         let vocab = WordLevel::read_file(vocab).map_err(|e| {
             exceptions::PyException::new_err(format!("Error while reading WordLevel file: {e}"))
         })?;
         let vocab: HashMap<_, _> = vocab.into_iter().collect();
         Ok(vocab)
->>>>>>> main
     }
 
     /// Instantiate a WordLevel model from the given file

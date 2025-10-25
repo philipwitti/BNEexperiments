@@ -4,9 +4,12 @@ use super::{WithFirstLastIterator, Word, BNE, Ngram};
 use crate::parallelism::*;
 use crate::tokenizer::{AddedToken, Result, Trainer};
 use crate::utils::progress::{ProgressBar, ProgressStyle};
+use ahash::{AHashMap, AHashSet};
+use compact_str::CompactString;
+use dary_heap::OctonaryHeap;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::{HashSet};
 
 // added length to the merge struct
 // TODO: Test merge struct in simple program
@@ -14,7 +17,7 @@ use std::collections::{BinaryHeap, HashMap, HashSet};
 struct Merge {
     ngram: Ngram,
     count: u64,
-    pos: HashSet<usize>,
+    pos: AHashSet<usize>,
     length: u64,
 }
 impl PartialEq for Merge {
@@ -47,7 +50,7 @@ struct Config {
     show_progress: bool,
     special_tokens: Vec<AddedToken>,
     limit_alphabet: Option<usize>,
-    initial_alphabet: HashSet<char>,
+    initial_alphabet: AHashSet<char>,
     continuing_subword_prefix: Option<String>,
     end_of_word_suffix: Option<String>,
     max_token_length: Option<usize>,
@@ -69,7 +72,7 @@ impl Default for BneTrainerBuilder {
                 show_progress: true,
                 special_tokens: vec![],
                 limit_alphabet: None,
-                initial_alphabet: HashSet::new(),
+                initial_alphabet: AHashSet::new(),
                 continuing_subword_prefix: None,
                 end_of_word_suffix: None,
                 max_token_length: None,
@@ -129,7 +132,9 @@ impl BneTrainerBuilder {
     /// Set the initial alphabet
     #[must_use]
     pub fn initial_alphabet(mut self, alphabet: HashSet<char>) -> Self {
-        self.config.initial_alphabet = alphabet;
+        let mut initial_alphabet = AHashSet::with_capacity(alphabet.len());
+        initial_alphabet.extend(alphabet);
+        self.config.initial_alphabet = initial_alphabet;
         self
     }
 
@@ -166,7 +171,7 @@ impl BneTrainerBuilder {
             continuing_subword_prefix: self.config.continuing_subword_prefix,
             end_of_word_suffix: self.config.end_of_word_suffix,
             max_token_length: self.config.max_token_length,
-            words: HashMap::new(),
+            words: AHashMap::new(),
         }
     }
 }
@@ -205,7 +210,7 @@ pub struct BneTrainer {
     pub limit_alphabet: Option<usize>,
     /// The initial alphabet we want absolutely to include. This allows to cover
     /// some characters that are not necessarily in the training set
-    pub initial_alphabet: HashSet<char>,
+    pub initial_alphabet: AHashSet<char>,
     /// An optional prefix to use on any subword that exist only behind another one
     pub continuing_subword_prefix: Option<String>,
     /// An optional suffix to characterize and end-of-word subword
@@ -213,7 +218,7 @@ pub struct BneTrainer {
     /// An optional parameter to limit the max length of any single token
     pub max_token_length: Option<usize>,
 
-    words: HashMap<String, u64>,
+    words: AHashMap<CompactString, u64>,
 }
 
 impl Default for BneTrainer {
@@ -270,19 +275,24 @@ impl BneTrainer {
     }
 
     /// Add the provided special tokens to the initial vocabulary
-    fn add_special_tokens(&self, w2id: &mut HashMap<String, u32>, id2w: &mut Vec<String>) {
+    fn add_special_tokens(
+        &self,
+        w2id: &mut AHashMap<CompactString, u32>,
+        id2w: &mut Vec<CompactString>,
+    ) {
         for token in &self.special_tokens {
-            if !w2id.contains_key(&token.content) {
-                id2w.push(token.content.to_owned());
-                w2id.insert(token.content.to_owned(), (id2w.len() - 1) as u32);
+            // get hash of content
+            if !w2id.contains_key(&CompactString::from(&token.content)) {
+                id2w.push(CompactString::from(&token.content));
+                w2id.insert(CompactString::from(&token.content), (id2w.len() - 1) as u32);
             }
         }
     }
 
     /// Compute the initial alphabet and limit it if relevant
-    fn compute_alphabet(&self, wc: &HashMap<String, u64>, w2id: &mut HashMap<String, u32>, id2w: &mut Vec<String>,) {
+    fn compute_alphabet(&self, wc: &AHashMap<CompactString, u64>, w2id: &mut AHashMap<CompactString, u32>, id2w: &mut Vec<CompactString>,) {
         // Compute the alphabet from seen words
-        let mut alphabet: HashMap<char, usize> = HashMap::new();
+        let mut alphabet: AHashMap<char, usize> = AHashMap::new();
         for (word, count) in wc {
             for c in word.chars() {
                 alphabet
@@ -321,12 +331,19 @@ impl BneTrainer {
         }
 
         // Keep the initial alphabet (sorted for determinism)
-        kept.sort_unstable_by_key(|k| (*k.0) as u32);
+        kept.sort_unstable_by_key(|k| *k.0 as u32);
         kept.into_iter().for_each(|(c, _)| {
             let s = c.to_string();
+            /*
             if !w2id.contains_key(&s) {
                 id2w.push(s.clone());
                 w2id.insert(s, (id2w.len() - 1) as u32);
+            }
+            */
+            // u64 hash version
+            if !w2id.contains_key(&CompactString::from(&s)) {
+                id2w.push(CompactString::from(&s));
+                w2id.insert(CompactString::from(&s), (id2w.len() - 1) as u32);
             }
         });
     }
@@ -334,9 +351,9 @@ impl BneTrainer {
     /// Tokenize words and add subwords to the vocabulary when relevant
     fn tokenize_words(
         &self,
-        wc: &HashMap<String, u64>,                                          // wordcount
-        w2id: &mut HashMap<String, u32>,                                    // word -> id
-        id2w: &mut Vec<String>,                                             // id -> word
+        wc: &AHashMap<CompactString, u64>,                                         // wordcount
+        w2id: &mut AHashMap<CompactString, u32>,                                    // word -> id
+        id2w: &mut Vec<CompactString>,                                             // id -> word
         p: &Option<ProgressBar>,                                            // progressBar
     ) -> (Vec<Word>, Vec<u64>) {
         let mut words: Vec<Word> = Vec::with_capacity(wc.len());            // wordsvector
@@ -348,28 +365,30 @@ impl BneTrainer {
 
             for (is_first, is_last, c) in word.chars().with_first_and_last() {
                 let mut s = c.to_string();
-                if w2id.contains_key(&s) {
+                if w2id.contains_key(&CompactString::from(&s)) {
                     // Found the initial char in the authorized alphabet
 
                     // Add the `continuing_subword_prefix` if relevant
                     if !is_first {
                         if let Some(prefix) = &self.continuing_subword_prefix {
-                            s = format!("{prefix}{s}");
+                            //s = format!("{prefix}{s}");
+                            s.insert_str(0, prefix);
                         }
                     }
                     // Add the `end_of_word_suffix` if relevant
                     if is_last {
                         if let Some(suffix) = &self.end_of_word_suffix {
-                            s = format!("{s}{suffix}");
+                            //s = format!("{s}{suffix}");
+                            s.push_str(suffix);
                         }
                     }
 
                     // Insert the new formed string if necessary
-                    if !w2id.contains_key(&s) {
-                        id2w.push(s.clone());
-                        w2id.insert(s.clone(), (id2w.len() - 1) as u32);
+                    if !w2id.contains_key(&CompactString::from(&s)) {
+                        id2w.push(CompactString::from(&s));
+                        w2id.insert(CompactString::from(&s), (id2w.len() - 1) as u32);
                     }
-                    current_word.add(w2id[&s], 1); // We do not care about the len here
+                    current_word.add(w2id[&CompactString::from(&s)], 1); // We do not care about the len here
                 }
             }
             words.push(current_word);
@@ -388,7 +407,7 @@ impl BneTrainer {
         words: &[Word],
         counts: &[u64],
         p: &Option<ProgressBar>,
-    ) -> (HashMap<Ngram, i32>, HashMap<Ngram, HashSet<usize>>) {
+    ) -> (AHashMap<Ngram, i32>, AHashMap<Ngram, AHashSet<usize>>) {
         words
             .maybe_par_iter()
             .enumerate()
@@ -396,8 +415,8 @@ impl BneTrainer {
                 // Ngram counts: mapping from ngram to counts
                 // where to update: mapping from ngram to words containing it for update purposes
                 // Struct mapping, with built in comparator
-                let mut ngram_counts: HashMap<Ngram, i32> = HashMap::new();
-                let mut where_to_update: HashMap<Ngram, HashSet<usize>> = HashMap::new();
+                let mut ngram_counts: AHashMap<Ngram, i32> = AHashMap::new();
+                let mut where_to_update: AHashMap<Ngram, AHashSet<usize>> = AHashMap::new();
                 
                 // change windowsize depending on word size
                 let max_ngram_len = if self.max_token_length.unwrap_or(usize::MAX) < word.get_chars().len() {self.max_token_length.unwrap_or(usize::MAX)} else {word.get_chars().len()};
@@ -420,7 +439,7 @@ impl BneTrainer {
                         where_to_update
                             .entry(cur_ngram.clone())
                             .and_modify(|h| {h.insert(i);})
-                            .or_insert_with(|| {let mut h = HashSet::new();h.insert(i);h});
+                            .or_insert_with(|| {let mut h = AHashSet::new();h.insert(i);h});
 
                         *ngram_counts.get_mut(&cur_ngram).unwrap() += count as i32;
                     }
@@ -433,7 +452,7 @@ impl BneTrainer {
                 (ngram_counts, where_to_update)
             })
             .reduce(
-                || (HashMap::new(), HashMap::new()),
+                || (AHashMap::new(), AHashMap::new()),
                 |(mut ngram_counts, mut where_to_update), (pc, wtu)| {
                     for (k, v) in pc {
                         ngram_counts.entry(k).and_modify(|c| *c += v).or_insert(v);
@@ -451,11 +470,11 @@ impl BneTrainer {
 
     pub fn do_train(
         &self,
-        word_counts: &HashMap<String, u64>,
+        word_counts: &AHashMap<CompactString, u64>,
         model: &mut BNE,
     ) -> Result<Vec<AddedToken>> {
-        let mut word_to_id: HashMap<String, u32> = HashMap::with_capacity(self.vocab_size); // token to id
-        let mut id_to_word: Vec<String> = Vec::with_capacity(self.vocab_size); // id to token
+        let mut word_to_id: AHashMap<CompactString, u32> = AHashMap::with_capacity(self.vocab_size); // token to id
+        let mut id_to_word: Vec<CompactString> = Vec::with_capacity(self.vocab_size); // id to token
         let max_token_length: usize = self.max_token_length.unwrap_or(usize::MAX);
 
         let progress = self.setup_progress();
@@ -510,7 +529,7 @@ impl BneTrainer {
         */
 
         // Insert them in the queue
-        let mut queue = BinaryHeap::with_capacity(ngram_counts.len());
+        let mut queue = OctonaryHeap::with_capacity(ngram_counts.len());
         where_to_update.drain().for_each(|(ngram, pos)| {
             let count = ngram_counts[&ngram];
             let length = ngram.ids.len();
@@ -541,12 +560,9 @@ impl BneTrainer {
             }
 
             // Stop if the queue is empty
-            if queue.is_empty() {
+            let Some(mut top) = queue.pop() else {
                 break;
-            }
-
-            // If top Merge score is not accurate, update it
-            let mut top = queue.pop().unwrap();
+            };
             // println!("top: ngram: {}, count: {}, length: {}", top.ngram.clone(), top.count, top.length);
             if top.count != ngram_counts[&top.ngram] as u64 {
                 top.count = ngram_counts[&top.ngram] as u64;
@@ -564,7 +580,7 @@ impl BneTrainer {
             }
 
             // Build a new token
-            let mut token_vec: Vec<String> = top.ngram.ids.iter().map(|id| id_to_word[*id as usize].clone()).collect();
+            let mut token_vec: Vec<CompactString> = top.ngram.ids.iter().map(|id| id_to_word[*id as usize].clone()).collect();
 
             // Build new token
             // Remove continuing subword prefix from characters/tokens when stored as new token
@@ -573,7 +589,7 @@ impl BneTrainer {
                     let part_b = token_vec[i].clone();
                     if part_b.starts_with(prefix) {
                         let prefix_byte_len = prefix.chars().map(|c| c.len_utf8()).sum();
-                        token_vec[i] = part_b[prefix_byte_len..].to_string();
+                        token_vec[i] = CompactString::from(&part_b[prefix_byte_len..].to_string());
                     }
                 }
             }
@@ -585,19 +601,19 @@ impl BneTrainer {
 
             // Insert new token if it does not already exist
             let new_token_id = word_to_id
-                .get(&new_token)
+                .get(&CompactString::from(&new_token))
                 .copied()
                 .unwrap_or(id_to_word.len() as u32);
-            if !word_to_id.contains_key(&new_token) {
-                id_to_word.push(new_token.clone());
-                word_to_id.insert(new_token.clone(), new_token_id);
+            if !word_to_id.contains_key(&CompactString::from(&new_token)) {
+                id_to_word.push(CompactString::from(&new_token));
+                word_to_id.insert(CompactString::from(&new_token), new_token_id);
             }
             merges.push((top.ngram.clone(), new_token_id));
 
             // Merge the new ngram in every words
             // Safety: This is just a type assertion, the code below may no longer be safe
             // if the type of `pos` changes
-            let pos: &HashSet<usize> = &top.pos;
+            let pos: &AHashSet<usize> = &top.pos;
 
             let words_len = words.len();
             struct WordPtr(*mut Word);
@@ -643,7 +659,7 @@ impl BneTrainer {
                             h.insert(iw);
                         })
                         .or_insert_with(|| {
-                            let mut h = HashSet::new();
+                            let mut h = AHashSet::new();
                             h.insert(iw);
                             h
                         });
@@ -669,7 +685,11 @@ impl BneTrainer {
         self.finalize_progress(&progress, merges.len());
 
         // Transfer new vocab & options to model
-        model.vocab = word_to_id;
+        model.vocab = word_to_id
+        .into_iter()
+            // we have to look up the string in id_to_word because the key in word_to_id is a hash
+            .map(|(_key, val)| (id_to_word[val as usize].to_string(), val))
+            .collect();
         model.vocab_r = model
             .vocab
             .iter()
@@ -681,16 +701,8 @@ impl BneTrainer {
             .map(|(i, (ngram, new_token_id))| (ngram, (i as u32, new_token_id)))
             .collect();
 
-        if let Some(prefix) = &self.continuing_subword_prefix {
-            model.continuing_subword_prefix = Some(prefix.to_owned());
-        } else {
-            model.continuing_subword_prefix = None;
-        }
-        if let Some(suffix) = &self.end_of_word_suffix {
-            model.end_of_word_suffix = Some(suffix.to_owned());
-        } else {
-            model.end_of_word_suffix = None;
-        }
+        model.continuing_subword_prefix = self.continuing_subword_prefix.clone();
+        model.end_of_word_suffix = self.end_of_word_suffix.clone();
 
         Ok(self.special_tokens.clone())
     }
@@ -715,18 +727,18 @@ impl Trainer for BneTrainer {
         S: AsRef<str> + Send,
         F: Fn(&str) -> Result<Vec<String>> + Sync,
     {
-        let words: Result<HashMap<String, u64>> = iterator
+        let words: Result<AHashMap<CompactString, u64>> = iterator
             .maybe_par_bridge()
             .map(|sequence| {
                 let words = process(sequence.as_ref())?;
-                let mut map = HashMap::new();
+                let mut map = AHashMap::new();
                 for word in words {
-                    map.entry(word).and_modify(|c| *c += 1).or_insert(1);
+                    map.entry(CompactString::from(word)).and_modify(|c| *c += 1).or_insert(1);
                 }
                 Ok(map)
             })
             .reduce(
-                || Ok(HashMap::new()),
+                || Ok(AHashMap::new()),
                 |acc, ws| {
                     let mut acc = acc?;
                     for (k, v) in ws? {
@@ -745,11 +757,13 @@ impl Trainer for BneTrainer {
 #[cfg(test)]
 mod tests {
     use super::{BneTrainer, Ngram, BNE};
+    use ahash::AHashMap;
+    use compact_str::CompactString;
     use std::collections::HashMap;
 
     #[test]
     fn test_train() {
-        let word_counts: HashMap<String, u64> = [
+        let word_counts: AHashMap<CompactString, u64> = [
             ("roses".into(), 1),
             ("are".into(), 2),
             ("red".into(), 1),
@@ -774,7 +788,7 @@ mod tests {
 
         // Vocab should contain all of the characters from the `word_counts` mapping
         // as well as three merges: 're', 'are', and 'is'.
-        let expected_vocab: HashMap<String, u32> = [
+        let expected_vocab: AHashMap<String, u32> = [
             ("-".into(), 0),
             ("2".into(), 1),
             ("B".into(), 2),
@@ -809,7 +823,7 @@ mod tests {
         // where 'rank' determines the order in which this merge will be applied during
         // tokenization, and 'id' is the vocab id of the symbol resulting from merging
         // the ngram of symbols in the corresponding key.
-        let expected_merges: HashMap<Ngram, (u32, u32)> = [
+        let expected_merges: AHashMap<Ngram, (u32, u32)> = [
             (Ngram {ids: vec![8, 17, 11]}, (0, 22)), // 'a' + 'r' + 'e'  -> 'are'
             (Ngram {ids: vec![13, 18]}, (1, 23)), // 'i' + 's'  -> 'is'
         ]
@@ -821,7 +835,7 @@ mod tests {
 
     #[test]
     fn test_train_2() {
-        let word_counts: HashMap<String, u64> = [
+        let word_counts: AHashMap<CompactString, u64> = [
             ("abcde".into(), 2),
             ("cd".into(), 50),
             ("bcdef".into(), 2),
@@ -839,7 +853,7 @@ mod tests {
 
         // Vocab should contain all of the characters from the `word_counts` mapping
         // as well as three merges: 're', 'are', and 'is'.
-        let expected_vocab: HashMap<String, u32> = [
+        let expected_vocab: AHashMap<String, u32> = [
             ("a".into(), 0),
             ("b".into(), 1),
             ("c".into(), 2),
@@ -860,7 +874,7 @@ mod tests {
         // where 'rank' determines the order in which this merge will be applied during
         // tokenization, and 'id' is the vocab id of the symbol resulting from merging
         // the ngram of symbols in the corresponding key.
-        let expected_merges: HashMap<Ngram, (u32, u32)> = [
+        let expected_merges: AHashMap<Ngram, (u32, u32)> = [
             (Ngram {ids: vec![2, 3]}, (0, 6)),
             (Ngram {ids: vec![1, 6, 4]}, (1, 7)),
             (Ngram {ids: vec![0, 7]}, (2, 8)),
@@ -881,7 +895,7 @@ mod tests {
          */
 
         let max_token_length = 16;
-        let long_word_counts: HashMap<String, u64> = [
+        let long_word_counts: AHashMap<CompactString, u64> = [
             ("singlelongtokenwithoutcasechange", 2),
             ("singleLongTokenWithCamelCaseChange", 2),
             ("Longsingletokenwithpunctu@t!onwithin", 2),
@@ -896,7 +910,7 @@ mod tests {
             ("GPT-2", 2),
         ]
         .iter()
-        .map(|(key, value)| (key.to_string(), *value))
+        .map(|(key, value)| (CompactString::from(key.to_string()), *value))
         .collect();
         let trainer = BneTrainer::builder()
             .max_token_length(Some(max_token_length))
@@ -922,7 +936,7 @@ mod tests {
         // directly compares tokens with known expected values.
         // maybe unstable depending on specific settings or changes.
          */
-        let long_word_counts: HashMap<String, u64> = [
+        let long_word_counts: AHashMap<CompactString, u64> = [
             ("sin", 2),
             ("Sin", 2),
             ("Lon", 2),
@@ -937,7 +951,7 @@ mod tests {
             ("GP", 2),
         ]
         .iter()
-        .map(|(key, value)| (key.to_string(), *value))
+        .map(|(key, value)| (CompactString::from(key.to_string()), *value))
         .collect();
         let trainer = BneTrainer::builder()
             .max_token_length(Some(2))

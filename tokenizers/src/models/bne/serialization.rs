@@ -1,10 +1,10 @@
 use super::{super::OrderedVocabIter, convert_merges_to_hashmap, BneBuilder, Ngram, BNE};
+use ahash::AHashMap;
 use serde::{
     de::{Error, MapAccess, Visitor},
     ser::SerializeStruct,
     Deserialize, Deserializer, Serialize, Serializer,
 };
-use std::collections::HashMap;
 
 impl Serialize for BNE {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -80,7 +80,7 @@ impl<'de> Visitor<'de> for BNEVisitor {
         V: MapAccess<'de>,
     {
         let mut builder = BneBuilder::new();
-        let mut vocab: Option<HashMap<String, u32>> = None;
+        let mut vocab: Option<AHashMap<String, u32>> = None;
 
         #[derive(Debug, Deserialize)]
         #[serde(untagged)]

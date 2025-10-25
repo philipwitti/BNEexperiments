@@ -1,7 +1,8 @@
 use super::Ngram;
-use rand::{thread_rng, Rng};
+use ahash::AHashMap;
+use rand::{rng, Rng};
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::{BinaryHeap};
 use std::usize;
 
 #[derive(Debug, Eq)]
@@ -203,7 +204,7 @@ impl Word {
 
 
     /// Merges all merges in the merge hashmap in a single word
-    pub(super) fn merge_all(&mut self, merges: &HashMap<Ngram, (u32, u32)>, dropout: Option<f32>) {
+    pub(super) fn merge_all(&mut self, merges: &AHashMap<Ngram, (u32, u32)>, dropout: Option<f32>) {
         let mut queue = BinaryHeap::with_capacity(self.symbols.len()*(self.symbols.len()-1)/2);
         let mut skip = Vec::with_capacity(queue.len());
 
@@ -227,7 +228,7 @@ impl Word {
 
         while let Some(top) = queue.pop() {
             if dropout
-                .map(|d| thread_rng().gen::<f32>() < d)
+                .map(|d| rng().random::<f32>() < d)
                 .unwrap_or(false)
             {
                 skip.push(top);
@@ -523,7 +524,7 @@ mod tests {
         word.add(3, 1); // 'o'
         word.add(4, 1); // '!'
 
-        let mut merges: HashMap<Ngram, (u32, u32)> = HashMap::new();
+        let mut merges: AHashMap<Ngram, (u32, u32)> = AHashMap::new();
         merges.insert(Ngram{ids:vec![2, 2]}, (0, 5));       // merge 'l', 'l' -> 'll' (rank: 0, id: 5)
         //merges.insert(Ngram{ids:vec![5, 3, 4]}, (1, 6));    // merge 'll', 'o', '!' -> 'llo!' (rank: 1, id: 6)
 
@@ -559,7 +560,7 @@ mod tests {
         word.add(3, 1); // 'o'
         word.add(4, 1); // '!'
 
-        let mut merges: HashMap<Ngram, (u32, u32)> = HashMap::new();
+        let mut merges: AHashMap<Ngram, (u32, u32)> = AHashMap::new();
         merges.insert(Ngram{ids:vec![2, 2]}, (0, 5));       // merge 'l', 'l' -> 'll' (rank: 0, id: 5)
         merges.insert(Ngram{ids:vec![5, 3, 4]}, (1, 6));    // merge 'll', 'o', '!' -> 'llo!' (rank: 1, id: 6)
 
