@@ -15,7 +15,10 @@ trainer = BneTrainer(special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]
 tokenizer.pre_tokenizer = ByteLevel()
 
 # Load dataset
-dataset = datasets.load_dataset("JeanKaddour/minipile", split="train") #.train_test_split(test_size=0.5, seed=42)["train"]
+dataset = datasets.load_dataset(
+    "JeanKaddour/minipile", split="train"
+)  # .train_test_split(test_size=0.5, seed=42)["train"]
+
 
 # Build an iterator over this dataset
 def batch_iterator():
@@ -23,10 +26,10 @@ def batch_iterator():
     for batch in dataset.iter(batch_size=batch_size):
         yield batch["text"]
 
+
 os.mkdir("data/" + name)
 
 tokenizer.train_from_iterator(batch_iterator(), trainer, length=len(dataset))
 tokenizer.save(f"data/{name}/{name}.json")
 
 model.save(f"data/{name}/", name)
-

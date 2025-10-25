@@ -13,6 +13,7 @@ tokenizer.pre_tokenizer = ByteLevel()
 # Load dataset
 dataset = datasets.load_dataset("pietrolesci/finewebedu-20B", "default", split="train")
 
+
 # Build an iterator over this dataset
 def batch_iterator():
     batch_size = 1000
