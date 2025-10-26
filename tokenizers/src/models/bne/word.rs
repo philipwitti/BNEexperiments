@@ -1,8 +1,8 @@
 use super::Ngram;
 use ahash::AHashMap;
+use dary_heap::QuaternaryHeap;
 use rand::{rng, Rng};
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap};
 use std::usize;
 
 #[derive(Debug, Eq)]
@@ -205,7 +205,8 @@ impl Word {
 
     /// Merges all merges in the merge hashmap in a single word
     pub(super) fn merge_all(&mut self, merges: &AHashMap<Ngram, (u32, u32)>, dropout: Option<f32>) {
-        let mut queue = BinaryHeap::with_capacity(self.symbols.len()*(self.symbols.len()-1)/2);
+        //println!("begin merge_all");
+        let mut queue = QuaternaryHeap::with_capacity(self.symbols.len()*(self.symbols.len()-1)/2);
         let mut skip = Vec::with_capacity(queue.len());
 
         // extend queue with all ngram sizes
@@ -226,7 +227,7 @@ impl Word {
             );
         }
 
-        while let Some(top) = queue.pop() {
+        'queue: while let Some(top) = queue.pop() {
             if dropout
                 .map(|d| rng().random::<f32>() < d)
                 .unwrap_or(false)
@@ -245,13 +246,21 @@ impl Word {
                     continue;
                 }
 
-                //println!("top.pos: {}", top.pos);
-                //println!("new_ids with len: {}", top.length);
-                //print!("[");
+                /*println!("top.pos: {}", top.pos);
+                println!("top.new_id: {}", top.new_id);
+                println!("top.length: {}", top.length);
+                println!("{:?}", self);
+                println!("new_ids with len: {}", top.length);
+                print!("[");*/
+
 
                 let mut new_ids: Vec<u32> = Vec::with_capacity(top.length as usize);
                 let mut curr = self.symbols[top.pos];
                 for _ in 0..top.length-1 {
+                    // Do nothing if we are the last symbol
+                    if curr.next == -1 {
+                        continue 'queue;
+                    }
                     new_ids.push(curr.c);
                     //print!("{}, ", curr.c);
                     curr = self.symbols[curr.next as usize];

@@ -209,14 +209,14 @@ impl BneBuilder {
     }
 }
 
-/// A [Byte Pair Encoding](https://www.aclweb.org/anthology/P16-1162/) model.
+/// A [Byte Ngram Encoding](https://www.aclweb.org/anthology/P16-1162/) model.
 #[derive(PartialEq)]
 pub struct BNE {
     /// The vocabulary assigns a number to each token.
     pub(crate) vocab: Vocab,
     /// Reversed vocabulary, to rebuild sentences.
     pub(crate) vocab_r: VocabR,
-    /// Contains the mapping between Pairs and their (rank, new_id).
+    /// Contains the mapping between Ngrams and their (rank, new_id).
     pub(crate) merges: MergeMap,
     /// Contains the cache for optimizing the encoding step.
     cache: Option<Cache<String, Word>>,
@@ -376,10 +376,13 @@ impl BNE {
     }
 
     fn merge_word(&self, w: &str) -> Result<Word> {
+        //println!("{}", w);
         let mut indices = w.char_indices().map(|(idx, _)| idx).peekable();
         let mut word = Word::with_capacity(w.len());
         let mut unk: Option<(u32, usize)> = None;
         while let Some(i) = indices.next() {
+            //println!("{}", i);
+            //println!("{}", w.chars().nth(i).unwrap_or_default());
             let end = indices.peek();
             let is_first = i == 0;
             let is_last = end.is_none();
@@ -456,7 +459,8 @@ impl BNE {
         if let Some((unk_id, unk_len)) = unk {
             word.add(unk_id, unk_len);
         }
-
+        //println!("{:?}", word);
+        //println!("{}", word.get_chars_iter().map(|elem| self.vocab_r.get(&elem).unwrap()).fold(String::new(), |acc, x| acc.to_owned() + &x));
         word.merge_all(&self.merges, self.dropout);
 
         Ok(word)
