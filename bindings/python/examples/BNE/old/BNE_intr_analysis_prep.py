@@ -11,7 +11,7 @@ import os
 tokenizer_name = "bne_byteLevel_minipile_5_tokens_16000"
 path_in = "examples/BNE/old/data/"
 path_out = "examples/BNE/old/out/"
-config_file = {"vocabulary_files" : {}}
+config_file = {"vocabulary_files": {}}
 data_file = {}
 # Load dataset
 dataset = datasets.load_dataset("JeanKaddour/minipile", split="train").shuffle(seed=42).shard(num_shards=100, index=0)
@@ -31,13 +31,15 @@ config_file["vocabulary_files"][tokenizer_name] = os.path.join(path_out, tokeniz
 
 data_list = []
 for text in tqdm(dataset["text"]):
-    data_list.append({
-      "tokenizer_name": tokenizer_name,
-      "language": "eng_Latn", 
-      "tokens": tokenizer.encode(text).ids,
-      "text": text,
-      "metadata": {"source": "minipile"}
-    })
+    data_list.append(
+        {
+            "tokenizer_name": tokenizer_name,
+            "language": "eng_Latn",
+            "tokens": tokenizer.encode(text).ids,
+            "text": text,
+            "metadata": {"source": "minipile"},
+        }
+    )
 data_file[tokenizer_name] = data_list
 
 with open(os.path.join(path_out, "data_file.json"), "w") as file:

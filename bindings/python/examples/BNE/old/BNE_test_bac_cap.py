@@ -26,6 +26,7 @@ dataset = datasets.load_dataset("barilan/blog_authorship_corpus", split="train")
     num_shards=5, index=0
 )  # .train_test_split(test_size=0.75, seed=42)["train"]
 
+
 # Build an iterator over this dataset
 def batch_iterator():
     batch_size = 1000
@@ -33,7 +34,7 @@ def batch_iterator():
         yield batch["text"]
 
 
-#os.mkdir("data/BNE/")
+# os.mkdir("data/BNE/")
 for index in range(len(tokens)):
     tokenizers[index].train_from_iterator(batch_iterator(), trainers[index], length=len(dataset))
     tokenizers[index].save(f"data/BNE/{name}{tokens[index]}.json")

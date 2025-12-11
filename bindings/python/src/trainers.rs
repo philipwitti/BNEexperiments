@@ -515,6 +515,16 @@ impl PyBneTrainer {
     }
 
     #[getter]
+    fn get_max_ngram_length(self_: PyRef<Self>) -> Option<usize> {
+        getter!(self_, BneTrainer, max_ngram_length)
+    }
+
+    #[setter]
+    fn set_max_ngram_length(self_: PyRef<Self>, limit: Option<usize>) {
+        setter!(self_, BneTrainer, max_ngram_length, limit);
+    }
+
+    #[getter]
     fn get_initial_alphabet(self_: PyRef<Self>) -> Vec<String> {
         getter!(
             self_,
@@ -588,6 +598,7 @@ impl PyBneTrainer {
                     }
                     "limit_alphabet" => builder = builder.limit_alphabet(val.extract()?),
                     "max_token_length" => builder = builder.max_token_length(val.extract()?),
+                    "max_ngram_length" => builder = builder.max_ngram_length(val.extract()?),
                     "initial_alphabet" => {
                         let alphabet: Vec<String> = val.extract()?;
                         builder = builder.initial_alphabet(

@@ -27,7 +27,7 @@ def batch_iterator():
         yield batch["text"]
 
 
-#os.mkdir("data/" + name)
+# os.mkdir("data/" + name)
 
 tokenizer.train_from_iterator(batch_iterator(), trainer, length=len(dataset))
 tokenizer.save(f"data/{name}/{name}.json")

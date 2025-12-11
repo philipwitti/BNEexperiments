@@ -6,17 +6,19 @@ import datasets
 import os
 
 # Define name of test
-name = "bne_byteLevel_minipile_50"
+name = "bne_byteLevel_minipile_10_3"
 
 # Build tokenizer
 model = BNE(unk_token="[UNK]")
 tokenizer = Tokenizer(model)
-trainer = BneTrainer(special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]"], max_token_length=48, vocab_size=262144)
+trainer = BneTrainer(
+    special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]"], max_ngram_length=48, vocab_size=262144
+)
 tokenizer.pre_tokenizer = ByteLevel()
 
 # Load dataset
 dataset = datasets.load_dataset("JeanKaddour/minipile", split="train").shard(
-    num_shards=2, index=0
+    num_shards=10, index=3
 )  # .train_test_split(test_size=0.75, seed=42)["train"]
 
 

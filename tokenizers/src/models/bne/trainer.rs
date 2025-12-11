@@ -580,7 +580,7 @@ impl BneTrainer {
 
             if top.count != ngram_counts[&top.ngram] as u64 {
                 top.count = ngram_counts[&top.ngram] as u64;
-                let mut token_vec: Vec<CompactString> = top.ngram.ids.iter().map(|id| id_to_word[*id as usize].clone()).collect();
+                //let token_vec: Vec<CompactString> = top.ngram.ids.iter().map(|id| id_to_word[*id as usize].clone()).collect();
                 //println!("Invalid top: ngram: {:?}", token_vec);
                 queue.push(top);
                 continue;
