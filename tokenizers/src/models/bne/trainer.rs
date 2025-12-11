@@ -54,6 +54,7 @@ struct Config {
     continuing_subword_prefix: Option<String>,
     end_of_word_suffix: Option<String>,
     max_token_length: Option<usize>,
+    max_ngram_length: Option<usize>,
 }
 
 /// A `BneTrainerBuilder` can be used to create a `BneTrainer` with a custom
@@ -76,6 +77,7 @@ impl Default for BneTrainerBuilder {
                 continuing_subword_prefix: None,
                 end_of_word_suffix: None,
                 max_token_length: None,
+                max_ngram_length: None,
             },
         }
     }
@@ -158,6 +160,13 @@ impl BneTrainerBuilder {
         self
     }
 
+    /// Set max_ngram_length
+    #[must_use]
+    pub fn max_ngram_length(mut self, max_ngram_length: Option<usize>) -> Self {
+        self.config.max_ngram_length = max_ngram_length;
+        self
+    }
+
     /// Constructs the final BneTrainer
     pub fn build(self) -> BneTrainer {
         BneTrainer {
@@ -171,6 +180,7 @@ impl BneTrainerBuilder {
             continuing_subword_prefix: self.config.continuing_subword_prefix,
             end_of_word_suffix: self.config.end_of_word_suffix,
             max_token_length: self.config.max_token_length,
+            max_ngram_length: self.config.max_ngram_length,
             words: AHashMap::new(),
         }
     }
@@ -217,6 +227,8 @@ pub struct BneTrainer {
     pub end_of_word_suffix: Option<String>,
     /// An optional parameter to limit the max length of any single token
     pub max_token_length: Option<usize>,
+    /// An optional parameter to limit the max length of any computed ngram
+    pub max_ngram_length: Option<usize>,
 
     words: AHashMap<CompactString, u64>,
 }
@@ -401,7 +413,7 @@ impl BneTrainer {
         (words, counts)
     }
 
-    /// Only adds Ngram that do not exceed max_token_length
+    /// Only adds Ngram that do not exceed max_token_length and max_ngram_length
     fn count_ngrams(
         &self,
         words: &[Word],
@@ -419,7 +431,8 @@ impl BneTrainer {
                 let mut where_to_update: AHashMap<Ngram, AHashSet<usize>> = AHashMap::new();
                 
                 // change windowsize depending on word size
-                let max_ngram_len = if self.max_token_length.unwrap_or(usize::MAX) < word.get_chars().len() {self.max_token_length.unwrap_or(usize::MAX)} else {word.get_chars().len()};
+                let max_ngram_len_tmp = if self.max_token_length.unwrap_or(usize::MAX) < word.get_chars().len() {self.max_token_length.unwrap_or(usize::MAX)} else {word.get_chars().len()};
+                let max_ngram_len = if self.max_ngram_length.unwrap_or(usize::MAX) < max_ngram_len_tmp {self.max_ngram_length.unwrap_or(usize::MAX)} else {max_ngram_len_tmp};
                 for ngram_len in 2..max_ngram_len + 1 { 
                     for window in word.get_chars().windows(ngram_len) {
                         // TODO: continue if exceeding max ngram length, expose function in word
@@ -476,6 +489,7 @@ impl BneTrainer {
         let mut word_to_id: AHashMap<CompactString, u32> = AHashMap::with_capacity(self.vocab_size); // token to id
         let mut id_to_word: Vec<CompactString> = Vec::with_capacity(self.vocab_size); // id to token
         let max_token_length: usize = self.max_token_length.unwrap_or(usize::MAX);
+        let max_ngram_length: usize = self.max_ngram_length.unwrap_or(usize::MAX);
 
         let progress = self.setup_progress();
 
@@ -636,7 +650,7 @@ impl BneTrainer {
                         let word = word_start.0.add(i);
                         // let word: &mut Word = &mut (*word);
                         (*word)
-                            .merge(top.ngram.clone().ids, new_token_id, max_token_length)
+                            .merge(top.ngram.clone().ids, new_token_id, max_token_length, max_ngram_length)
                             .into_iter()
                             .map(|c| (c, i))
                             .collect::<Vec<_>>()
