@@ -9,7 +9,7 @@ import os
 name = "bne_byteLevel_minipile_5_tokens_"
 
 # Vocab length
-tokens = [16000]
+tokens = [256000, 128000, 64000, 32000, 16000, 8000]
 
 # Build tokenizer
 models = []
@@ -22,9 +22,10 @@ for vocab_len in tokens:
     tokenizers[-1].pre_tokenizer = ByteLevel()
 
 # Load dataset
-dataset = datasets.load_dataset("barilan/blog_authorship_corpus", split="train").shard(
-    num_shards=5, index=0
+dataset = datasets.load_dataset("JeanKaddour/minipile", split="train").shard(
+    num_shards=20, index=7
 )  # .train_test_split(test_size=0.75, seed=42)["train"]
+
 
 # Build an iterator over this dataset
 def batch_iterator():
@@ -33,7 +34,7 @@ def batch_iterator():
         yield batch["text"]
 
 
-#os.mkdir("data/BNE/")
+os.mkdir("data/BNE/")
 for index in range(len(tokens)):
     tokenizers[index].train_from_iterator(batch_iterator(), trainers[index], length=len(dataset))
     tokenizers[index].save(f"data/BNE/{name}{tokens[index]}.json")
