@@ -227,6 +227,7 @@ impl Word {
             i += 1;
         }
         changes_ngrams.into_iter().zip(changes_vals.into_iter()).filter(|(_, val)| *val != 0).collect()
+        //changes
     }
 
 

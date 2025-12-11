@@ -629,6 +629,7 @@ impl BneTrainer {
                 word_to_id.insert(CompactString::from(&new_token), new_token_id);
             }
             merges.push((top.ngram.clone(), new_token_id));
+            //println!("Merging Token: {}", new_token);
 
             // Merge the new ngram in every words
             // Safety: This is just a type assertion, the code below may no longer be safe
@@ -667,6 +668,7 @@ impl BneTrainer {
 
             // Introduce new formed Ngrams
             // TODO: Check if this works for ngrams and merging within ngrams
+            //println!("creating where to update");
             for ((ngram, change), iw) in changes {
                 let count = change * counts[iw] as i32;
                 ngram_counts
