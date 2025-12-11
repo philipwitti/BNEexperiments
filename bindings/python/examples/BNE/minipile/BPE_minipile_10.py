@@ -1,22 +1,22 @@
 from tokenizers import Tokenizer
-from tokenizers.models import BNE
-from tokenizers.trainers import BneTrainer
+from tokenizers.models import BPE
+from tokenizers.trainers import BpeTrainer
 from tokenizers.pre_tokenizers import ByteLevel, Whitespace
 import datasets
 import os
 
 # Define name of test
-name = "bne_byteLevel_minipile_50"
+name = "bpe_byteLevel_minipile_10"
 
 # Build tokenizer
-model = BNE(unk_token="[UNK]")
+model = BPE(unk_token="[UNK]")
 tokenizer = Tokenizer(model)
-trainer = BneTrainer(special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]"], max_token_length=48, vocab_size=262144)
+trainer = BpeTrainer(special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]"])
 tokenizer.pre_tokenizer = ByteLevel()
 
 # Load dataset
 dataset = datasets.load_dataset("JeanKaddour/minipile", split="train").shard(
-    num_shards=2, index=0
+    num_shards=10, index=7
 )  # .train_test_split(test_size=0.75, seed=42)["train"]
 
 
@@ -27,7 +27,7 @@ def batch_iterator():
         yield batch["text"]
 
 
-os.mkdir("data/" + name)
+#os.mkdir("data/" + name)
 
 tokenizer.train_from_iterator(batch_iterator(), trainer, length=len(dataset))
 tokenizer.save(f"data/{name}/{name}.json")
