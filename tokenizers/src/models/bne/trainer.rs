@@ -563,11 +563,15 @@ impl BneTrainer {
             let Some(mut top) = queue.pop() else {
                 break;
             };
-            // println!("top: ngram: {}, count: {}, length: {}", top.ngram.clone(), top.count, top.length);
+
             if top.count != ngram_counts[&top.ngram] as u64 {
                 top.count = ngram_counts[&top.ngram] as u64;
+                let mut token_vec: Vec<CompactString> = top.ngram.ids.iter().map(|id| id_to_word[*id as usize].clone()).collect();
+                //println!("Invalid top: ngram: {:?}", token_vec);
                 queue.push(top);
                 continue;
+            } else {
+                
             }
             // Stop if top count scaled is too small (does not exceed min scale frequency)
             if top.count < 1 || self.min_scale_frequency > top.count * (top.length-1) {
@@ -581,6 +585,8 @@ impl BneTrainer {
 
             // Build a new token
             let mut token_vec: Vec<CompactString> = top.ngram.ids.iter().map(|id| id_to_word[*id as usize].clone()).collect();
+            // println!("top: ngram: {}, count: {}, length: {}", top.ngram.clone(), top.count, top.length);
+            //println!("Valid top: ngram: {:?}", token_vec);
 
             // Build new token
             // Remove continuing subword prefix from characters/tokens when stored as new token
@@ -622,6 +628,7 @@ impl BneTrainer {
             unsafe impl Sync for WordPtr {}
             let word_start = WordPtr(words.as_mut_ptr());
 
+            //println!("computing changes");
             let changes = pos
                 .maybe_par_iter()
                 .flat_map(|&i| {
@@ -665,6 +672,8 @@ impl BneTrainer {
                         });
                 }
             }
+
+            //println!("draining where to update");
             where_to_update.drain().for_each(|(ngram, pos)| {
                 let count = ngram_counts[&ngram];
                 if count > 0 {
