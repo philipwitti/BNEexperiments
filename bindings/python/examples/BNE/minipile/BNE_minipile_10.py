@@ -11,7 +11,7 @@ name = "bne_byteLevel_minipile_5_2"
 # Build tokenizer
 model = BNE(unk_token="[UNK]")
 tokenizer = Tokenizer(model)
-trainer = BneTrainer(special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]"])
+trainer = BneTrainer(special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]"], max_token_length=20)
 tokenizer.pre_tokenizer = ByteLevel()
 
 # Load dataset
