@@ -6,7 +6,7 @@ import datasets
 import os
 
 # Define name of test
-name = "bne_byteLevel_minipile_10_3"
+name = "bne_byteLevel_minipile_50_2"
 
 # Build tokenizer
 model = BNE(unk_token="[UNK]")
