@@ -22,9 +22,9 @@ for vocab_len in tokens:
     tokenizers[-1].pre_tokenizer = ByteLevel()
 
 # Load dataset
-dataset = datasets.load_dataset("JeanKaddour/minipile", split="train").shard(
-    num_shards=20, index=7
-)  # .train_test_split(test_size=0.75, seed=42)["train"]
+dataset = datasets.load_dataset("JeanKaddour/minipile", split="train")
+#.shard(num_shards=20, index=7)
+# .train_test_split(test_size=0.75, seed=42)["train"]
 
 
 # Build an iterator over this dataset
