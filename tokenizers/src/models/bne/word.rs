@@ -237,8 +237,9 @@ impl Word {
         let mut queue = QuaternaryHeap::with_capacity(self.symbols.len()*(self.symbols.len()-1)/2);
         let mut skip = Vec::with_capacity(queue.len());
 
+        
         // extend queue with all ngram sizes
-        for i in 2..self.symbols.len(){
+        for i in 2..self.symbols.len()+1{
             queue.extend(
                 self.symbols
                     .windows(i)
@@ -256,10 +257,7 @@ impl Word {
         }
 
         'queue: while let Some(top) = queue.pop() {
-            if dropout
-                .map(|d| rng().random::<f32>() < d)
-                .unwrap_or(false)
-            {
+            if dropout.map(|d| rng().random::<f32>() < d).unwrap_or(false) {
                 skip.push(top);
             } else {
                 // Re-insert the skipped elements
@@ -274,7 +272,8 @@ impl Word {
                     continue;
                 }
 
-                /*println!("top.pos: {}", top.pos);
+                /*
+                println!("top.pos: {}", top.pos);
                 println!("top.new_id: {}", top.new_id);
                 println!("top.length: {}", top.length);
                 println!("{:?}", self);
@@ -285,18 +284,27 @@ impl Word {
                 let mut new_ids: Vec<u32> = Vec::with_capacity(top.length as usize);
                 let mut curr = self.symbols[top.pos];
                 for _ in 0..top.length-1 {
+                    println!("runs once");
                     // Do nothing if we are the last symbol
                     if curr.next == -1 {
                         continue 'queue;
                     }
+                    /*if curr.c != top.ngram[_]:
+                        continue 'queue;*/
                     new_ids.push(curr.c);
                     //print!("{}, ", curr.c);
                     curr = self.symbols[curr.next as usize];
                 }
                 new_ids.push(curr.c);
                 //println!("{}]", curr.c);
+                /*
+                for id in &new_ids {
+                    print!("{}", id);
+                }
+                println!();*/
 
                 // Make sure we are not processing an expired queue entry
+                // TODO: Necessary??
                 let target_new_ngram = Ngram {ids: new_ids};
                 if merges
                     .get(&target_new_ngram)
@@ -703,6 +711,56 @@ mod tests {
             ]
         );
     }
+
+    
+    #[test]
+    fn test_merge_all_3() {
+        let mut word = Word::new();
+        word.add(0, 1); // 'h'
+        word.add(1, 1); // 'e'
+        word.add(2, 1); // 'l'
+        word.add(2, 1); // 'l'
+        word.add(3, 1); // 'o'
+        word.add(4, 1); // '!'
+
+        let mut merges: AHashMap<Ngram, (u32, u32)> = AHashMap::new();
+        merges.insert(Ngram{ids:vec![2, 2]}, (0, 5));    // merge 'l', 'l' -> 'll' (rank: 0, id: 5)
+        merges.insert(Ngram{ids:vec![1, 2]}, (1, 6));    // merge 'e''l' -> 'el!' (rank: 1, id: 6)
+        merges.insert(Ngram{ids:vec![0, 1]}, (2, 7));    // merge 'll', 'o', '!' -> 'llo!' (rank: 1, id: 6)
+        merges.insert(Ngram{ids:vec![1, 5]}, (3, 8));    // merge 'e', 'll' -> 'llo!' (rank: 1, id: 6)
+
+        word.merge_all(&merges, None);
+        
+        assert_eq!(
+            word.get_chars(),
+            &[
+                7u32, // 'he'
+                5u32, // 'll'
+                3u32, // 'o'
+                4u32, // '!'
+
+            ]
+        );
+    }
+
+      #[test]
+    fn test_merge_all_4() {
+        let mut word = Word::new();
+        word.add(0, 1); // 'o'
+        word.add(1, 1); // 'f'
+
+        let mut merges: AHashMap<Ngram, (u32, u32)> = AHashMap::new();
+        merges.insert(Ngram{ids:vec![0, 1]}, (0, 2));    // merge 'l', 'l' -> 'll' (rank: 0, id: 5)
+
+        word.merge_all(&merges, None);
+        
+        assert_eq!(
+            word.get_chars(),
+            &[
+                2u32, // 'of'
+            ]
+        );
+    }  
 
     #[test]
     fn test_merge_all_dropout() {
