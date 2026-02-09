@@ -284,7 +284,6 @@ impl Word {
                 let mut new_ids: Vec<u32> = Vec::with_capacity(top.length as usize);
                 let mut curr = self.symbols[top.pos];
                 for _ in 0..top.length-1 {
-                    println!("runs once");
                     // Do nothing if we are the last symbol
                     if curr.next == -1 {
                         continue 'queue;
