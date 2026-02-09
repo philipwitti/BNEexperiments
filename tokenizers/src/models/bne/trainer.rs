@@ -433,7 +433,9 @@ impl BneTrainer {
                 // change windowsize depending on word size
                 let max_ngram_len_tmp = if self.max_token_length.unwrap_or(usize::MAX) < word.get_chars().len() {self.max_token_length.unwrap_or(usize::MAX)} else {word.get_chars().len()};
                 let max_ngram_len = if self.max_ngram_length.unwrap_or(usize::MAX) < max_ngram_len_tmp {self.max_ngram_length.unwrap_or(usize::MAX)} else {max_ngram_len_tmp};
-                for ngram_len in 2..max_ngram_len + 1 { 
+                for ngram_len in 2..max_ngram_len + 1 {
+                    let mut last_ngram = Ngram{ids: vec![]};
+                    let mut same_ngrams = 0;
                     for window in word.get_chars().windows(ngram_len) {
                         // TODO: continue if exceeding max ngram length, expose function in word
                         // Check if there are any characters with len > 1 at this point..
@@ -441,6 +443,16 @@ impl BneTrainer {
                         let cur_ngram= Ngram {
                             ids: Vec::from(window),
                         };
+
+                        // Skip Ngram if already counted in an overlapping Ngram that is exactely the same
+                        if cur_ngram == last_ngram && same_ngrams + 1 < ngram_len {
+                            same_ngrams += 1;
+                            continue;
+                        }
+                        
+                        //  Update Skipping counter and current ngram
+                        last_ngram = cur_ngram.clone();
+                        same_ngrams = 0;
 
                         // Initialize ngram_counts and where_to_update for this ngram if we just saw it
                         if !ngram_counts.contains_key(&cur_ngram) {
@@ -781,10 +793,54 @@ impl Trainer for BneTrainer {
 
 #[cfg(test)]
 mod tests {
-    use super::{BneTrainer, Ngram, BNE};
+    use super::{BneTrainer, Ngram, BNE, Word};
     use ahash::AHashMap;
     use compact_str::CompactString;
     use std::collections::HashMap;
+
+    #[test]
+    fn test_count_ngrams() {
+        // Define A word
+        let mut word = Word::new();
+        word.add(0, 1); // 'b'
+        word.add(1, 1); // 'a'
+        word.add(1, 1); // 'a'
+        word.add(1, 1); // 'a'
+        word.add(1, 1); // 'a'
+        word.add(0, 1); // 'b'
+
+        // Define Words and counts
+        let words: Vec<Word> = vec![word];
+        let counts: Vec<u64> = vec![1];
+
+        // Expected Ngram counts
+        let ngram_counts: AHashMap<Ngram, i32> = [
+            (Ngram{ids: vec![0,1]}, 1), // ba
+            (Ngram{ids: vec![0,1,1]}, 1), // baa
+            (Ngram{ids: vec![0,1,1,1]}, 1), // baaa
+            (Ngram{ids: vec![0,1,1,1,1]}, 1), // baaaa
+            (Ngram{ids: vec![0,1,1,1,1,0]}, 1), // baaaab
+            (Ngram{ids: vec![1,1]}, 2), // aa
+            (Ngram{ids: vec![1,1,1]}, 1), // aaa
+            (Ngram{ids: vec![1,1,1,1]}, 1), // aaaa
+            (Ngram{ids: vec![1,0]}, 1), // ab
+            (Ngram{ids: vec![1,1,0]}, 1), // aab
+            (Ngram{ids: vec![1,1,1,0]}, 1), // aaab
+            (Ngram{ids: vec![1,1,1,1,0]}, 1), // aaaab
+        ]
+        .iter()
+        .cloned()
+        .collect();
+
+        // Count Ngrams
+        let trainer = BneTrainer::builder()
+            .show_progress(false)
+            .build();
+        let (calc_ngram_counts, _) = trainer.count_ngrams(&words, &counts, &None);
+        
+        assert_eq!(ngram_counts, calc_ngram_counts)
+
+    }
 
     #[test]
     fn test_train() {

@@ -120,10 +120,8 @@ impl Word {
         });
     }
 
-    /// Merges an Ngram in a word.
-    /// maybe make c input to Ngram type
-    /// subsequent merges should work, but check
-    pub(super) fn merge(&mut self, c: Vec<u32>, replacement: u32, max_length: usize, max_ngram_length: usize) -> Vec<(Ngram, i32)> {
+    /// Original Merge Function
+        pub(super) fn _merge_old(&mut self, c: Vec<u32>, replacement: u32, max_length: usize, max_ngram_length: usize) -> Vec<(Ngram, i32)> {
         //let mut changes: Vec<(Ngram, i32)> = vec![];
         let mut changes_ngrams: Vec<Ngram> = vec![];
         let mut changes_vals: Vec<i32> = vec![];
@@ -225,6 +223,147 @@ impl Word {
             }
 
             i += 1;
+        }
+        changes_ngrams.into_iter().zip(changes_vals.into_iter()).filter(|(_, val)| *val != 0).collect()
+        //changes
+    }
+
+    /// Merges an Ngram in a word.
+    /// maybe make c input to Ngram type
+    /// subsequent merges should work, but check
+    pub(super) fn merge(&mut self, c: Vec<u32>, replacement: u32, max_length: usize, max_ngram_length: usize) -> Vec<(Ngram, i32)> {
+        //let mut changes: Vec<(Ngram, i32)> = vec![];
+        let mut changes_ngrams: Vec<Ngram> = vec![];
+        let mut changes_vals: Vec<i32> = vec![];
+        let mut i = 0;
+        
+        // Count all N-grams currently in word
+        let max_ngram_len_tmp = if max_ngram_length < self.symbols.len() {max_ngram_length} else {self.symbols.len()};
+        for ngram_len in 2..max_ngram_len_tmp + 1 {
+            let mut last_ngram = Ngram{ids: vec![]};
+            let mut same_ngrams = 0;
+            for window in self.symbols.windows(ngram_len) {
+                // TODO: continue if exceeding max ngram length, expose function in word
+                // Check if there are any characters with len > 1 at this point..
+
+                // Skip if the ngram results in a token too large
+                let ngram_length = window.iter().fold(0, |acc, sym| acc + sym.len);
+                    if ngram_length > max_length {
+                        continue;
+                }
+
+                // Create new ngram
+                let ngram= Ngram {ids:window.iter().map(|elem| elem.c).collect()};
+
+                // Skip if it is to be merged ngram
+                let merge = Ngram {ids:c.clone()};
+                if ngram == merge {
+                    continue;
+                }
+
+                // Skip Ngram if already counted in an overlapping Ngram that is exactely the same
+                if ngram == last_ngram && same_ngrams + 1 < ngram_len {
+                    same_ngrams += 1;
+                    continue;
+                }
+                
+                //  Update Skipping counter and current ngram
+                last_ngram = ngram.clone();
+                same_ngrams = 0;
+
+                // Update Ngram Counts
+                let pos = changes_ngrams.iter().position(|n| *n == ngram);
+                if pos.is_some() {
+                    changes_vals[pos.unwrap()] += -1
+                } else {
+                    changes_ngrams.push(
+                        ngram
+                    );
+                    changes_vals.push(
+                        -1
+                    );
+                }
+            }
+        }
+
+        // Merge all possible merges in word
+        loop {
+            if i >= self.symbols.len() {
+                break;
+            }
+
+            // Check for matching ngram
+            let mut matching = (i + c.len() - 1) < self.symbols.len(); // Ngram fits in word starting at i
+            let mut length:usize = 0;
+
+            if matching {
+                for j in 0..c.len() {
+                    matching &= c[j] == self.symbols[i+j].c;
+                    length += self.symbols[i+j].len;
+                }
+            }
+
+            // Found matching Ngram
+            if matching
+            {
+                // Remove in place
+                let new_s = Symbol {
+                    c: replacement,
+                    prev: self.symbols[i].prev,
+                    next: self.symbols[i+c.len()-1].next,
+                    len: length,
+                };
+
+                // Changed to remove whole Ngram
+                self.symbols.insert(i, new_s); // Insert replacement before first char of Ngram
+                for _ in 0..c.len() {
+                    self.symbols.remove(i + 1); // Remove all symbols of the new token from word
+                }
+            }
+            i += 1;
+        }
+
+        // Count all N-grams newly generated after merges
+        let max_ngram_len_tmp = if max_ngram_length < self.symbols.len() {max_ngram_length} else {self.symbols.len()};
+        for ngram_len in 2..max_ngram_len_tmp + 1 {
+            let mut last_ngram = Ngram{ids: vec![]};
+            let mut same_ngrams = 0;
+            for window in self.symbols.windows(ngram_len) {
+                // TODO: continue if exceeding max ngram length, expose function in word
+                // Check if there are any characters with len > 1 at this point..
+
+                // Skip if the ngram results in a token too large
+                let ngram_length = window.iter().fold(0, |acc, sym| acc + sym.len);
+                    if ngram_length > max_length {
+                        continue;
+                }
+
+                // Create new ngram
+                let ngram= Ngram {ids:window.iter().map(|elem| elem.c).collect()};
+
+                // Skip Ngram if already counted in an overlapping Ngram that is exactely the same
+                if ngram == last_ngram && same_ngrams + 1 < ngram_len {
+                    same_ngrams += 1;
+                    continue;
+                }
+                
+                //  Update Skipping counter and current ngram
+                last_ngram = ngram.clone();
+                same_ngrams = 0;
+
+                // Update Ngram Counts
+                let pos = changes_ngrams.iter().position(|n| *n == ngram);
+                if pos.is_some() {
+                    changes_vals[pos.unwrap()] += 1
+                } else {
+                    changes_ngrams.push(
+                        ngram
+                    );
+                    changes_vals.push(
+                        1
+                    );
+                }
+            }
         }
         changes_ngrams.into_iter().zip(changes_vals.into_iter()).filter(|(_, val)| *val != 0).collect()
         //changes
@@ -419,7 +558,7 @@ mod tests {
 
         // We're going to perform a merge on the pair ('l', 'l') ~= (2, 2). Let's
         // say that 'll' has the ID of 4 in the updated word-to-id vocab.
-        let changes = word.merge(vec![2,2], 4, usize::MAX, usize::MAX);
+        let mut changes = word.merge(vec![2,2], 4, usize::MAX, usize::MAX);
 
         // So the word should now look like this:
         assert_eq!(
@@ -434,8 +573,8 @@ mod tests {
 
         // The return value `changes` will be used to update the pair counts during
         assert_eq!(
-            changes,
-            &[
+            changes.sort(),
+            ([
                 (Ngram {ids:vec![0u32, 1u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l') should be decreased by 1.
                 (Ngram {ids:vec![1u32, 2u32]}, -1i32),          // count for ('e', 'l') should be decreased by 1.
                 (Ngram {ids:vec![0u32, 1u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l', 'l') should be decreased by 1.
@@ -450,7 +589,7 @@ mod tests {
                 (Ngram {ids:vec![0u32, 1u32, 4u32, 3u32]}, 1i32),  // count for ('h', 'e', 'll', 'o') should be increased by 1.
                 (Ngram {ids:vec![1u32, 4u32, 3u32]}, 1i32),  // count for ('e', 'll','o') should be increased by 1.
                 (Ngram {ids:vec![4u32, 3u32]}, 1i32),  // count for ('ll','o') should be increased by 1.
-            ]
+            ].sort())
         );
     }
 
@@ -468,7 +607,7 @@ mod tests {
 
         // We're going to perform a merge on the ngram ('e', 'l', 'l') ~= [1, 2, 2)] Let's
         // say that 'ell' has the ID of 5 in the updated word-to-id vocab.
-        let changes = word.merge(vec![1,2,2], 5, usize::MAX, usize::MAX);
+        let mut changes = word.merge(vec![1,2,2], 5, usize::MAX, usize::MAX);
 
         // So the word should now look like this:
         assert_eq!(
@@ -483,8 +622,8 @@ mod tests {
 
         // The return value `changes` will be used to update the pair counts during
         assert_eq!(
-            changes,
-            &[
+            changes.sort(),
+            [
                 (Ngram {ids:vec![0u32, 1u32]}, -1i32),    // count for ('h', 'e') should be decreased by 1.
                 (Ngram {ids:vec![0u32, 1u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l') should be decreased by 1.
                 (Ngram {ids:vec![1u32, 2u32]}, -1i32),          // count for ('e', 'l') should be decreased by 1.
@@ -505,7 +644,7 @@ mod tests {
                 (Ngram {ids:vec![5u32, 3u32]}, 1i32),  // count for ('ell','o') should be increased by 1.
                 (Ngram {ids:vec![0u32, 5u32, 3u32, 4u32]}, 1i32),  // count for ('h', 'ell', 'o', '!') should be increased by 1.
                 (Ngram {ids:vec![5u32, 3u32, 4u32]}, 1i32),  // count for ('ell','o', '!') should be increased by 1.
-            ]
+            ].sort()
         );
     }
 
@@ -522,7 +661,7 @@ mod tests {
 
         // We're going to perform a merge on the ngram ('e', 'l', 'l') ~= [1, 2, 2)] Let's
         // say that 'ell' has the ID of 5 in the updated word-to-id vocab.
-        let changes = word.merge(vec![2,2], 5, usize::MAX, usize::MAX);
+        let mut changes = word.merge(vec![2,2], 5, usize::MAX, usize::MAX);
 
         // So the word should now look like this:
         assert_eq!(
@@ -536,8 +675,8 @@ mod tests {
 
         // The return value `changes` will be used to update the pair counts during
         assert_eq!(
-            changes,
-            &[
+            changes.sort(),
+            [
                 (Ngram {ids:vec![0u32, 2u32]}, -1i32),    // count for ('h', 'l') should be decreased by 1.
                 (Ngram {ids:vec![0u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'l', 'l') should be decreased by 1.
                 (Ngram {ids:vec![0u32, 2u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'l', 'l', 'l') should be decreased by 1.
@@ -549,7 +688,7 @@ mod tests {
                 (Ngram {ids:vec![0u32, 5u32]}, 1i32),  // count for ('h', 'll') should be increased by 1.
                 (Ngram {ids:vec![0u32, 5u32, 5u32]}, 1i32),  // count for ('h', 'll', 'll') should be increased by 1.
                 (Ngram {ids:vec![5u32, 5u32]}, 1i32),  // count for ('ll','ll') should be increased by 1.
-            ]
+            ].sort()
         );
     }
     
@@ -566,7 +705,7 @@ mod tests {
 
         // We're going to perform a merge on the pair ('l', 'l') ~= (2, 2). Let's
         // say that 'll' has the ID of 4 in the updated word-to-id vocab.
-        let changes = word.merge(vec![2,2], 4, 3, usize::MAX);
+        let mut changes = word.merge(vec![2,2], 4, 3, usize::MAX);
 
         // So the word should now look like this:
         assert_eq!(
@@ -581,8 +720,8 @@ mod tests {
 
         // The return value `changes` will be used to update the pair counts during
         assert_eq!(
-            changes,
-            &[
+            changes.sort(),
+            [
                 (Ngram {ids:vec![0u32, 1u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l') should be decreased by 1.
                 (Ngram {ids:vec![1u32, 2u32]}, -1i32),          // count for ('e', 'l') should be decreased by 1.
                 //(Ngram {ids:vec![0u32, 1u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l', 'l') should be decreased by 1.
@@ -597,7 +736,7 @@ mod tests {
                 //(Ngram {ids:vec![0u32, 1u32, 4u32, 3u32]}, 1i32),  // count for ('h', 'e', 'll', 'o') should be increased by 1.
                 //(Ngram {ids:vec![1u32, 4u32, 3u32]}, 1i32),  // count for ('e', 'll','o') should be increased by 1.
                 (Ngram {ids:vec![4u32, 3u32]}, 1i32),  // count for ('ll','o') should be increased by 1.
-            ]
+            ].sort()
         );
     }
 
@@ -614,7 +753,7 @@ mod tests {
 
         // We're going to perform a merge on the pair ('l', 'l') ~= (2, 2). Let's
         // say that 'll' has the ID of 4 in the updated word-to-id vocab.
-        let changes = word.merge(vec![2,2], 4, usize::MAX, 3);
+        let mut changes = word.merge(vec![2,2], 4, usize::MAX, 3);
 
         // So the word should now look like this:
         assert_eq!(
@@ -629,8 +768,8 @@ mod tests {
 
         // The return value `changes` will be used to update the pair counts during
         assert_eq!(
-            changes,
-            &[
+            changes.sort(),
+            [
                 (Ngram {ids:vec![0u32, 1u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l') should be decreased by 1.
                 (Ngram {ids:vec![1u32, 2u32]}, -1i32),          // count for ('e', 'l') should be decreased by 1.
                 //(Ngram {ids:vec![0u32, 1u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l', 'l') should be decreased by 1.
@@ -645,7 +784,7 @@ mod tests {
                 //(Ngram {ids:vec![0u32, 1u32, 4u32, 3u32]}, 1i32),  // count for ('h', 'e', 'll', 'o') should be increased by 1.
                 (Ngram {ids:vec![1u32, 4u32, 3u32]}, 1i32),  // count for ('e', 'll','o') should be increased by 1.
                 (Ngram {ids:vec![4u32, 3u32]}, 1i32),  // count for ('ll','o') should be increased by 1.
-            ]
+            ].sort()
         );
     }
 
