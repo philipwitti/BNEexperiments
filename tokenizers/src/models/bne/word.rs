@@ -236,6 +236,7 @@ impl Word {
         let mut changes_ngrams: Vec<Ngram> = vec![];
         let mut changes_vals: Vec<i32> = vec![];
         let mut i = 0;
+        let merge = Ngram {ids:c.clone()};
         
         // Count all N-grams currently in word
         let max_ngram_len_tmp = if max_ngram_length < self.symbols.len() {max_ngram_length} else {self.symbols.len()};
@@ -256,7 +257,6 @@ impl Word {
                 let ngram= Ngram {ids:window.iter().map(|elem| elem.c).collect()};
 
                 // Skip if it is to be merged ngram
-                let merge = Ngram {ids:c.clone()};
                 if ngram == merge {
                     continue;
                 }
@@ -572,24 +572,28 @@ mod tests {
         );
 
         // The return value `changes` will be used to update the pair counts during
-        assert_eq!(
-            changes.sort(),
-            ([
-                (Ngram {ids:vec![0u32, 1u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l') should be decreased by 1.
-                (Ngram {ids:vec![1u32, 2u32]}, -1i32),          // count for ('e', 'l') should be decreased by 1.
-                (Ngram {ids:vec![0u32, 1u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l', 'l') should be decreased by 1.
-                (Ngram {ids:vec![1u32, 2u32, 2u32]}, -1i32),    // count for ('e', 'l', 'l') should be decreased by 1.
-                (Ngram {ids:vec![0u32, 1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('h', 'e', 'l', 'l', 'o') should be decreased by 1.
-                (Ngram {ids:vec![1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('e', 'l', 'l', 'o') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 2u32, 3u32]}, -1i32),    // count for ('l', 'l', 'o') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 3u32]}, -1i32),    // count for ('l', 'o') should be decreased by 1.
+        let mut changes_control = [
+            (Ngram {ids:vec![0u32, 1u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l') should be decreased by 1.
+            (Ngram {ids:vec![1u32, 2u32]}, -1i32),          // count for ('e', 'l') should be decreased by 1.
+            (Ngram {ids:vec![0u32, 1u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![1u32, 2u32, 2u32]}, -1i32),    // count for ('e', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![0u32, 1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('h', 'e', 'l', 'l', 'o') should be decreased by 1.
+            (Ngram {ids:vec![1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('e', 'l', 'l', 'o') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 2u32, 3u32]}, -1i32),    // count for ('l', 'l', 'o') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 3u32]}, -1i32),    // count for ('l', 'o') should be decreased by 1.
 
-                (Ngram {ids:vec![0u32, 1u32, 4u32]}, 1i32),  // count for ('h', 'e', 'll') should be increased by 1.
-                (Ngram {ids:vec![1u32, 4u32]}, 1i32),  // count for ('e', 'll') should be increased by 1.
-                (Ngram {ids:vec![0u32, 1u32, 4u32, 3u32]}, 1i32),  // count for ('h', 'e', 'll', 'o') should be increased by 1.
-                (Ngram {ids:vec![1u32, 4u32, 3u32]}, 1i32),  // count for ('e', 'll','o') should be increased by 1.
-                (Ngram {ids:vec![4u32, 3u32]}, 1i32),  // count for ('ll','o') should be increased by 1.
-            ].sort())
+            (Ngram {ids:vec![0u32, 1u32, 4u32]}, 1i32),  // count for ('h', 'e', 'll') should be increased by 1.
+            (Ngram {ids:vec![1u32, 4u32]}, 1i32),  // count for ('e', 'll') should be increased by 1.
+            (Ngram {ids:vec![0u32, 1u32, 4u32, 3u32]}, 1i32),  // count for ('h', 'e', 'll', 'o') should be increased by 1.
+            (Ngram {ids:vec![1u32, 4u32, 3u32]}, 1i32),  // count for ('e', 'll','o') should be increased by 1.
+            (Ngram {ids:vec![4u32, 3u32]}, 1i32),  // count for ('ll','o') should be increased by 1.
+        ];
+        changes.sort();
+        changes_control.sort();
+
+        assert_eq!(
+            changes,
+            changes_control
         );
     }
 
@@ -621,30 +625,34 @@ mod tests {
         );
 
         // The return value `changes` will be used to update the pair counts during
+        let mut changes_control = [
+            (Ngram {ids:vec![0u32, 1u32]}, -1i32),    // count for ('h', 'e') should be decreased by 1.
+            (Ngram {ids:vec![0u32, 1u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l') should be decreased by 1.
+            (Ngram {ids:vec![1u32, 2u32]}, -1i32),          // count for ('e', 'l') should be decreased by 1.
+            (Ngram {ids:vec![0u32, 1u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 2u32]}, -1i32),    // count for ('l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![0u32, 1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('h', 'e', 'l', 'l', 'o') should be decreased by 1.
+            (Ngram {ids:vec![1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('e', 'l', 'l', 'o') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 2u32, 3u32]}, -1i32),    // count for ('l', 'l', 'o') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 3u32]}, -1i32),    // count for ('l', 'o') should be decreased by 1.
+            (Ngram {ids:vec![0u32, 1u32, 2u32, 2u32, 3u32, 4u32]}, -1i32),    // count for ('h', 'e', 'l', 'l', 'o', '!') should be decreased by 1.
+            (Ngram {ids:vec![1u32, 2u32, 2u32, 3u32, 4u32]}, -1i32),    // count for ('e', 'l', 'l', 'o', '!') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 2u32, 3u32, 4u32]}, -1i32),    // count for ('l', 'l', 'o', '!') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 3u32, 4u32]}, -1i32),    // count for ('l', 'o', '!') should be decreased by 1.
+
+
+            (Ngram {ids:vec![0u32, 5u32]}, 1i32),  // count for ('h', 'ell') should be increased by 1.
+            (Ngram {ids:vec![0u32, 5u32, 3u32]}, 1i32),  // count for ('h', 'ell', 'o') should be increased by 1.
+            (Ngram {ids:vec![5u32, 3u32]}, 1i32),  // count for ('ell','o') should be increased by 1.
+            (Ngram {ids:vec![0u32, 5u32, 3u32, 4u32]}, 1i32),  // count for ('h', 'ell', 'o', '!') should be increased by 1.
+            (Ngram {ids:vec![5u32, 3u32, 4u32]}, 1i32),  // count for ('ell','o', '!') should be increased by 1.
+        ];
+        changes.sort();
+        changes_control.sort();
+
         assert_eq!(
-            changes.sort(),
-            [
-                (Ngram {ids:vec![0u32, 1u32]}, -1i32),    // count for ('h', 'e') should be decreased by 1.
-                (Ngram {ids:vec![0u32, 1u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l') should be decreased by 1.
-                (Ngram {ids:vec![1u32, 2u32]}, -1i32),          // count for ('e', 'l') should be decreased by 1.
-                (Ngram {ids:vec![0u32, 1u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l', 'l') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 2u32]}, -1i32),    // count for ('l', 'l') should be decreased by 1.
-                (Ngram {ids:vec![0u32, 1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('h', 'e', 'l', 'l', 'o') should be decreased by 1.
-                (Ngram {ids:vec![1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('e', 'l', 'l', 'o') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 2u32, 3u32]}, -1i32),    // count for ('l', 'l', 'o') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 3u32]}, -1i32),    // count for ('l', 'o') should be decreased by 1.
-                (Ngram {ids:vec![0u32, 1u32, 2u32, 2u32, 3u32, 4u32]}, -1i32),    // count for ('h', 'e', 'l', 'l', 'o', '!') should be decreased by 1.
-                (Ngram {ids:vec![1u32, 2u32, 2u32, 3u32, 4u32]}, -1i32),    // count for ('e', 'l', 'l', 'o', '!') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 2u32, 3u32, 4u32]}, -1i32),    // count for ('l', 'l', 'o', '!') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 3u32, 4u32]}, -1i32),    // count for ('l', 'o', '!') should be decreased by 1.
-
-
-                (Ngram {ids:vec![0u32, 5u32]}, 1i32),  // count for ('h', 'ell') should be increased by 1.
-                (Ngram {ids:vec![0u32, 5u32, 3u32]}, 1i32),  // count for ('h', 'ell', 'o') should be increased by 1.
-                (Ngram {ids:vec![5u32, 3u32]}, 1i32),  // count for ('ell','o') should be increased by 1.
-                (Ngram {ids:vec![0u32, 5u32, 3u32, 4u32]}, 1i32),  // count for ('h', 'ell', 'o', '!') should be increased by 1.
-                (Ngram {ids:vec![5u32, 3u32, 4u32]}, 1i32),  // count for ('ell','o', '!') should be increased by 1.
-            ].sort()
+            changes,
+            changes_control
         );
     }
 
@@ -674,21 +682,81 @@ mod tests {
         );
 
         // The return value `changes` will be used to update the pair counts during
-        assert_eq!(
-            changes.sort(),
-            [
-                (Ngram {ids:vec![0u32, 2u32]}, -1i32),    // count for ('h', 'l') should be decreased by 1.
-                (Ngram {ids:vec![0u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'l', 'l') should be decreased by 1.
-                (Ngram {ids:vec![0u32, 2u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'l', 'l', 'l') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 2u32, 2u32]}, -2i32),    // count for ('l', 'l', 'l') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 2u32]}, -1i32),    // count for ('l', 'l') should be decreased by 1.
-                (Ngram {ids:vec![0u32, 2u32, 2u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'l', 'l', 'l', 'l') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 2u32, 2u32, 2u32]}, -1i32),    // count for ('l', 'l', 'l', 'l') should be decreased by 1.
+        let mut changes_control = [
+            (Ngram {ids:vec![0u32, 2u32]}, -1i32),    // count for ('h', 'l') should be decreased by 1.
+            (Ngram {ids:vec![0u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![0u32, 2u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'l', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 2u32, 2u32]}, -1i32),    // count for ('l', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![0u32, 2u32, 2u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'l', 'l', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 2u32, 2u32, 2u32]}, -1i32),    // count for ('l', 'l', 'l', 'l') should be decreased by 1.
 
-                (Ngram {ids:vec![0u32, 5u32]}, 1i32),  // count for ('h', 'll') should be increased by 1.
-                (Ngram {ids:vec![0u32, 5u32, 5u32]}, 1i32),  // count for ('h', 'll', 'll') should be increased by 1.
-                (Ngram {ids:vec![5u32, 5u32]}, 1i32),  // count for ('ll','ll') should be increased by 1.
-            ].sort()
+            (Ngram {ids:vec![0u32, 5u32]}, 1i32),  // count for ('h', 'll') should be increased by 1.
+            (Ngram {ids:vec![0u32, 5u32, 5u32]}, 1i32),  // count for ('h', 'll', 'll') should be increased by 1.
+            (Ngram {ids:vec![5u32, 5u32]}, 1i32),  // count for ('ll','ll') should be increased by 1.
+        ];
+        changes.sort();
+        changes_control.sort();
+
+        assert_eq!(
+            changes,
+            changes_control
+        );
+    }
+
+    #[test]
+    fn test_merge_skip_ngrams() {
+        // Let's say we have the word 'hello' and a word-to-id vocab that looks
+        // like this: {'h': 0, 'e': 1, 'l': 2, 'o': 3, '!': 4}.
+        let mut word = Word::new();
+        word.add(0, 1); // 'h'
+        word.add(2, 1); // 'l'
+        word.add(2, 1); // 'l'
+        word.add(2, 1); // 'l'
+        word.add(2, 1); // 'l'
+        word.add(0, 1); // 'h'
+
+        // We're going to perform a merge on the ngram ('e', 'l', 'l') ~= [1, 2, 2)] Let's
+        // say that 'ell' has the ID of 5 in the updated word-to-id vocab.
+        let mut changes = word.merge(vec![2,2], 5, usize::MAX, usize::MAX);
+
+        // So the word should now look like this:
+        assert_eq!(
+            word.get_chars(),
+            &[
+                0u32, // 'h'
+                5u32, // 'll'
+                5u32, // 'll'
+                0u32, // 'h'
+            ]
+        );
+
+        // The return value `changes` will be used to update the pair counts during
+        let mut changes_control = [
+            (Ngram {ids:vec![0u32, 2u32]}, -1i32),    // count for ('h', 'l') should be decreased by 1.
+            (Ngram {ids:vec![0u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![0u32, 2u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'l', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 2u32, 2u32]}, -1i32),    // count for ('l', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 2u32, 2u32, 0u32]}, -1i32),    // count for ('l', 'l', 'l', 'h') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 2u32, 0u32]}, -1i32),    // count for ('l', 'l', 'h') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 0u32]}, -1i32),    // count for ('l', 'h') should be decreased by 1.
+            (Ngram {ids:vec![0u32, 2u32, 2u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'l', 'l', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![0u32, 2u32, 2u32, 2u32, 2u32, 0u32]}, -1i32),    // count for ('h', 'l', 'l', 'l', 'l', 'h') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 2u32, 2u32, 2u32]}, -1i32),    // count for ('l', 'l', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 2u32, 2u32, 2u32, 0u32]}, -1i32),    // count for ('l', 'l', 'l', 'l', 'h') should be decreased by 1.
+
+            (Ngram {ids:vec![0u32, 5u32]}, 1i32),  // count for ('h', 'll') should be increased by 1.
+            (Ngram {ids:vec![0u32, 5u32, 5u32]}, 1i32),  // count for ('h', 'll', 'll') should be increased by 1.
+            (Ngram {ids:vec![0u32, 5u32, 5u32, 0u32]}, 1i32),  // count for ('h', 'll', 'll', 'h') should be increased by 1.
+            (Ngram {ids:vec![5u32, 5u32]}, 1i32),  // count for ('ll','ll') should be increased by 1.
+            (Ngram {ids:vec![5u32, 5u32, 0u32]}, 1i32),  // count for ('ll','ll', 'h') should be increased by 1.
+            (Ngram {ids:vec![5u32, 0u32]}, 1i32),  // count for ('ll','h') should be increased by 1.
+        ];
+        changes.sort();
+        changes_control.sort();
+
+        assert_eq!(
+            changes,
+            changes_control
         );
     }
     
@@ -719,24 +787,28 @@ mod tests {
         );
 
         // The return value `changes` will be used to update the pair counts during
-        assert_eq!(
-            changes.sort(),
-            [
-                (Ngram {ids:vec![0u32, 1u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l') should be decreased by 1.
-                (Ngram {ids:vec![1u32, 2u32]}, -1i32),          // count for ('e', 'l') should be decreased by 1.
-                //(Ngram {ids:vec![0u32, 1u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l', 'l') should be decreased by 1.
-                (Ngram {ids:vec![1u32, 2u32, 2u32]}, -1i32),    // count for ('e', 'l', 'l') should be decreased by 1.
-                //(Ngram {ids:vec![0u32, 1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('h', 'e', 'l', 'l', 'o') should be decreased by 1.
-                //(Ngram {ids:vec![1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('e', 'l', 'l', 'o') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 2u32, 3u32]}, -1i32),    // count for ('l', 'l', 'o') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 3u32]}, -1i32),    // count for ('l', 'o') should be decreased by 1.
+        let mut changes_control = [
+            (Ngram {ids:vec![0u32, 1u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l') should be decreased by 1.
+            (Ngram {ids:vec![1u32, 2u32]}, -1i32),          // count for ('e', 'l') should be decreased by 1.
+            //(Ngram {ids:vec![0u32, 1u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![1u32, 2u32, 2u32]}, -1i32),    // count for ('e', 'l', 'l') should be decreased by 1.
+            //(Ngram {ids:vec![0u32, 1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('h', 'e', 'l', 'l', 'o') should be decreased by 1.
+            //(Ngram {ids:vec![1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('e', 'l', 'l', 'o') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 2u32, 3u32]}, -1i32),    // count for ('l', 'l', 'o') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 3u32]}, -1i32),    // count for ('l', 'o') should be decreased by 1.
 
-                //(Ngram {ids:vec![0u32, 1u32, 4u32]}, 1i32),  // count for ('h', 'e', 'll') should be increased by 1.
-                (Ngram {ids:vec![1u32, 4u32]}, 1i32),  // count for ('e', 'll') should be increased by 1.
-                //(Ngram {ids:vec![0u32, 1u32, 4u32, 3u32]}, 1i32),  // count for ('h', 'e', 'll', 'o') should be increased by 1.
-                //(Ngram {ids:vec![1u32, 4u32, 3u32]}, 1i32),  // count for ('e', 'll','o') should be increased by 1.
-                (Ngram {ids:vec![4u32, 3u32]}, 1i32),  // count for ('ll','o') should be increased by 1.
-            ].sort()
+            //(Ngram {ids:vec![0u32, 1u32, 4u32]}, 1i32),  // count for ('h', 'e', 'll') should be increased by 1.
+            (Ngram {ids:vec![1u32, 4u32]}, 1i32),  // count for ('e', 'll') should be increased by 1.
+            //(Ngram {ids:vec![0u32, 1u32, 4u32, 3u32]}, 1i32),  // count for ('h', 'e', 'll', 'o') should be increased by 1.
+            //(Ngram {ids:vec![1u32, 4u32, 3u32]}, 1i32),  // count for ('e', 'll','o') should be increased by 1.
+            (Ngram {ids:vec![4u32, 3u32]}, 1i32),  // count for ('ll','o') should be increased by 1.
+        ];
+        changes.sort();
+        changes_control.sort();
+
+        assert_eq!(
+            changes,
+            changes_control
         );
     }
 
@@ -767,24 +839,28 @@ mod tests {
         );
 
         // The return value `changes` will be used to update the pair counts during
-        assert_eq!(
-            changes.sort(),
-            [
-                (Ngram {ids:vec![0u32, 1u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l') should be decreased by 1.
-                (Ngram {ids:vec![1u32, 2u32]}, -1i32),          // count for ('e', 'l') should be decreased by 1.
-                //(Ngram {ids:vec![0u32, 1u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l', 'l') should be decreased by 1.
-                (Ngram {ids:vec![1u32, 2u32, 2u32]}, -1i32),    // count for ('e', 'l', 'l') should be decreased by 1.
-                //(Ngram {ids:vec![0u32, 1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('h', 'e', 'l', 'l', 'o') should be decreased by 1.
-                //(Ngram {ids:vec![1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('e', 'l', 'l', 'o') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 2u32, 3u32]}, -1i32),    // count for ('l', 'l', 'o') should be decreased by 1.
-                (Ngram {ids:vec![2u32, 3u32]}, -1i32),    // count for ('l', 'o') should be decreased by 1.
+        let mut changes_control = [
+            (Ngram {ids:vec![0u32, 1u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l') should be decreased by 1.
+            (Ngram {ids:vec![1u32, 2u32]}, -1i32),          // count for ('e', 'l') should be decreased by 1.
+            //(Ngram {ids:vec![0u32, 1u32, 2u32, 2u32]}, -1i32),    // count for ('h', 'e', 'l', 'l') should be decreased by 1.
+            (Ngram {ids:vec![1u32, 2u32, 2u32]}, -1i32),    // count for ('e', 'l', 'l') should be decreased by 1.
+            //(Ngram {ids:vec![0u32, 1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('h', 'e', 'l', 'l', 'o') should be decreased by 1.
+            //(Ngram {ids:vec![1u32, 2u32, 2u32, 3u32]}, -1i32),    // count for ('e', 'l', 'l', 'o') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 2u32, 3u32]}, -1i32),    // count for ('l', 'l', 'o') should be decreased by 1.
+            (Ngram {ids:vec![2u32, 3u32]}, -1i32),    // count for ('l', 'o') should be decreased by 1.
 
-                (Ngram {ids:vec![0u32, 1u32, 4u32]}, 1i32),  // count for ('h', 'e', 'll') should be increased by 1.
-                (Ngram {ids:vec![1u32, 4u32]}, 1i32),  // count for ('e', 'll') should be increased by 1.
-                //(Ngram {ids:vec![0u32, 1u32, 4u32, 3u32]}, 1i32),  // count for ('h', 'e', 'll', 'o') should be increased by 1.
-                (Ngram {ids:vec![1u32, 4u32, 3u32]}, 1i32),  // count for ('e', 'll','o') should be increased by 1.
-                (Ngram {ids:vec![4u32, 3u32]}, 1i32),  // count for ('ll','o') should be increased by 1.
-            ].sort()
+            (Ngram {ids:vec![0u32, 1u32, 4u32]}, 1i32),  // count for ('h', 'e', 'll') should be increased by 1.
+            (Ngram {ids:vec![1u32, 4u32]}, 1i32),  // count for ('e', 'll') should be increased by 1.
+            //(Ngram {ids:vec![0u32, 1u32, 4u32, 3u32]}, 1i32),  // count for ('h', 'e', 'll', 'o') should be increased by 1.
+            (Ngram {ids:vec![1u32, 4u32, 3u32]}, 1i32),  // count for ('e', 'll','o') should be increased by 1.
+            (Ngram {ids:vec![4u32, 3u32]}, 1i32),  // count for ('ll','o') should be increased by 1.
+        ];
+        changes.sort();
+        changes_control.sort();
+
+        assert_eq!(
+            changes,
+            changes_control
         );
     }
 
