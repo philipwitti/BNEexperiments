@@ -7,6 +7,7 @@ pub mod metaspace;
 pub mod punctuation;
 pub mod sequence;
 pub mod split;
+pub mod split_byte_level;
 pub mod unicode_scripts;
 pub mod whitespace;
 
@@ -21,6 +22,7 @@ use crate::pre_tokenizers::metaspace::Metaspace;
 use crate::pre_tokenizers::punctuation::Punctuation;
 use crate::pre_tokenizers::sequence::Sequence;
 use crate::pre_tokenizers::split::Split;
+use crate::pre_tokenizers::split_byte_level::SplitByteLevel;
 use crate::pre_tokenizers::unicode_scripts::UnicodeScripts;
 use crate::pre_tokenizers::whitespace::{Whitespace, WhitespaceSplit};
 use crate::{PreTokenizedString, PreTokenizer};
@@ -35,6 +37,7 @@ pub enum PreTokenizerWrapper {
     Whitespace(Whitespace),
     Sequence(Sequence),
     Split(Split),
+    SplitByteLevel(SplitByteLevel),
     Punctuation(Punctuation),
     WhitespaceSplit(WhitespaceSplit),
     Digits(Digits),
@@ -53,6 +56,7 @@ impl PreTokenizer for PreTokenizerWrapper {
             Self::Punctuation(tok) => tok.pre_tokenize(normalized),
             Self::Sequence(tok) => tok.pre_tokenize(normalized),
             Self::Split(tok) => tok.pre_tokenize(normalized),
+            Self::SplitByteLevel(tok) => tok.pre_tokenize(normalized),
             Self::WhitespaceSplit(wspt) => wspt.pre_tokenize(normalized),
             Self::Digits(wspt) => wspt.pre_tokenize(normalized),
             Self::UnicodeScripts(us) => us.pre_tokenize(normalized),
@@ -82,6 +86,7 @@ impl<'de> Deserialize<'de> for PreTokenizerWrapper {
             Whitespace,
             Sequence,
             Split,
+            SplitByteLevel,
             Punctuation,
             WhitespaceSplit,
             Digits,
@@ -106,6 +111,7 @@ impl<'de> Deserialize<'de> for PreTokenizerWrapper {
             Whitespace(Whitespace),
             Sequence(Sequence),
             Split(Split),
+            SplitByteLevel(SplitByteLevel),
             Punctuation(Punctuation),
             WhitespaceSplit(WhitespaceSplit),
             Digits(Digits),
@@ -144,6 +150,9 @@ impl<'de> Deserialize<'de> for PreTokenizerWrapper {
                         serde_json::from_value(values).map_err(serde::de::Error::custom)?,
                     ),
                     EnumType::Split => PreTokenizerWrapper::Split(
+                        serde_json::from_value(values).map_err(serde::de::Error::custom)?,
+                    ),
+                    EnumType::SplitByteLevel => PreTokenizerWrapper::SplitByteLevel(
                         serde_json::from_value(values).map_err(serde::de::Error::custom)?,
                     ),
                     EnumType::Punctuation => PreTokenizerWrapper::Punctuation(
@@ -186,6 +195,9 @@ impl<'de> Deserialize<'de> for PreTokenizerWrapper {
                         PreTokenizerWrapper::Sequence(sequence)
                     }
                     PreTokenizerUntagged::Split(split) => PreTokenizerWrapper::Split(split),
+                    PreTokenizerUntagged::SplitByteLevel(split_byte_level) => {
+                        PreTokenizerWrapper::SplitByteLevel(split_byte_level)
+                    }
                     PreTokenizerUntagged::Punctuation(punctuation) => {
                         PreTokenizerWrapper::Punctuation(punctuation)
                     }
@@ -212,6 +224,7 @@ impl_enum_from!(Whitespace, PreTokenizerWrapper, Whitespace);
 impl_enum_from!(Punctuation, PreTokenizerWrapper, Punctuation);
 impl_enum_from!(Sequence, PreTokenizerWrapper, Sequence);
 impl_enum_from!(Split, PreTokenizerWrapper, Split);
+impl_enum_from!(SplitByteLevel, PreTokenizerWrapper, SplitByteLevel);
 impl_enum_from!(Metaspace, PreTokenizerWrapper, Metaspace);
 impl_enum_from!(WhitespaceSplit, PreTokenizerWrapper, WhitespaceSplit);
 impl_enum_from!(Digits, PreTokenizerWrapper, Digits);

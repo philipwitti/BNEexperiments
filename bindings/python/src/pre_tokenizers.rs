@@ -16,6 +16,7 @@ use tk::pre_tokenizers::fixed_length::FixedLength;
 use tk::pre_tokenizers::metaspace::{Metaspace, PrependScheme};
 use tk::pre_tokenizers::punctuation::Punctuation;
 use tk::pre_tokenizers::split::Split;
+use tk::pre_tokenizers::split_byte_level::SplitByteLevel;
 use tk::pre_tokenizers::unicode_scripts::UnicodeScripts;
 use tk::pre_tokenizers::whitespace::{Whitespace, WhitespaceSplit};
 use tk::pre_tokenizers::PreTokenizerWrapper;
@@ -73,6 +74,12 @@ impl PyPreTokenizer {
                             .into_pyobject(py)?
                             .into_any()
                             .into(),
+                        PreTokenizerWrapper::SplitByteLevel(_) => {
+                            Py::new(py, (PySplitByteLevel {}, base))?
+                                .into_pyobject(py)?
+                                .into_any()
+                                .into()
+                        }
                         PreTokenizerWrapper::Punctuation(_) => {
                             Py::new(py, (PyPunctuation {}, base))?
                                 .into_pyobject(py)?
@@ -343,6 +350,22 @@ impl PyByteLevel {
             .into_iter()
             .map(|c| c.to_string())
             .collect()
+    }
+}
+
+/// SplitByteLevel PreTokenizer
+///
+/// Applies the following sequence:
+/// 1. Split with the regex used by modern GPT-style tokenizers
+/// 2. ByteLevel with add_prefix_space=False and use_regex=False
+#[pyclass(extends=PyPreTokenizer, module = "tokenizers.pre_tokenizers", name = "SplitByteLevel")]
+pub struct PySplitByteLevel {}
+#[pymethods]
+impl PySplitByteLevel {
+    #[new]
+    #[pyo3(text_signature = "(self)")]
+    fn new() -> (Self, PyPreTokenizer) {
+        (PySplitByteLevel {}, SplitByteLevel.into())
     }
 }
 
@@ -980,6 +1003,7 @@ pub fn pre_tokenizers(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyWhitespace>()?;
     m.add_class::<PyWhitespaceSplit>()?;
     m.add_class::<PySplit>()?;
+    m.add_class::<PySplitByteLevel>()?;
     m.add_class::<PyBertPreTokenizer>()?;
     m.add_class::<PyMetaspace>()?;
     m.add_class::<PyCharDelimiterSplit>()?;

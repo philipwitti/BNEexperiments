@@ -1,0 +1,439 @@
+{
+  "version": "1.0",
+  "truncation": null,
+  "padding": null,
+  "added_tokens": [
+    {
+      "id": 0,
+      "content": "[UNK]",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 1,
+      "content": "[CLS]",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 2,
+      "content": "[SEP]",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 3,
+      "content": "[PAD]",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 4,
+      "content": "[MASK]",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    }
+  ],
+  "normalizer": null,
+  "pre_tokenizer": {
+    "type": "SplitByteLevel"
+  },
+  "post_processor": null,
+  "decoder": null,
+  "model": {
+    "type": "BNE",
+    "dropout": null,
+    "unk_token": "[UNK]",
+    "continuing_subword_prefix": null,
+    "end_of_word_suffix": null,
+    "fuse_unk": false,
+    "byte_fallback": false,
+    "ignore_merges": false,
+    "vocab": {
+      "[UNK]": 0,
+      "[CLS]": 1,
+      "[SEP]": 2,
+      "[PAD]": 3,
+      "[MASK]": 4,
+      "-": 5,
+      ".": 6,
+      "1": 7,
+      "2": 8,
+      "3": 9,
+      "4": 10,
+      "A": 11,
+      "B": 12,
+      "H": 13,
+      "S": 14,
+      "T": 15,
+      "V": 16,
+      "a": 17,
+      "b": 18,
+      "c": 19,
+      "d": 20,
+      "e": 21,
+      "f": 22,
+      "g": 23,
+      "h": 24,
+      "i": 25,
+      "k": 26,
+      "l": 27,
+      "m": 28,
+      "n": 29,
+      "o": 30,
+      "p": 31,
+      "r": 32,
+      "s": 33,
+      "t": 34,
+      "u": 35,
+      "v": 36,
+      "w": 37,
+      "y": 38,
+      "z": 39,
+      "Ġ": 40,
+      "ence": 41,
+      "entence": 42,
+      "atio": 43,
+      "Ġone": 44,
+      "Ġs": 45,
+      "in": 46,
+      "est": 47,
+      "Vali": 48,
+      "aining": 49,
+      "eniz": 50,
+      "hard": 51,
+      "Ġfor": 52,
+      "Ġtraining": 53,
+      "Ġtwo": 54,
+      "Validation": 55,
+      "Ġsentence": 56,
+      "okeniz": 57,
+      "-lev": 58,
+      "Anot": 59,
+      "Byte": 60,
+      "Hell": 61,
+      "Smal": 62,
+      "Tokenizer": 63,
+      "ampl": 64,
+      "bugg": 65,
+      "corp": 66,
+      "data": 67,
+      "debuggin": 68,
+      "etokenizatio": 69,
+      "from": 70,
+      "orld": 71,
+      "plit": 72,
+      "pretokenization": 73,
+      "Ġand": 74,
+      "Ġline": 75,
+      "Ġcorpus": 76,
+      "Another": 77,
+      "Test": 78,
+      "Ġshard": 79,
+      "Ġtest": 80,
+      "Ġworld": 81,
+      "Ġdebugging": 82,
+      "Ġsample": 83,
+      "-level": 84,
+      "ĠA": 85,
+      "Ġdata": 86,
+      "Ġfrom": 87,
+      "Ġpretokenization": 88,
+      "Ġsplit": 89,
+      "Hello": 90,
+      "Small": 91
+    },
+    "merges": [
+      [
+        "e",
+        "n",
+        "c",
+        "e"
+      ],
+      [
+        "e",
+        "n",
+        "t",
+        "ence"
+      ],
+      [
+        "a",
+        "t",
+        "i",
+        "o"
+      ],
+      [
+        "Ġ",
+        "o",
+        "n",
+        "e"
+      ],
+      [
+        "Ġ",
+        "s"
+      ],
+      [
+        "i",
+        "n"
+      ],
+      [
+        "e",
+        "s",
+        "t"
+      ],
+      [
+        "V",
+        "a",
+        "l",
+        "i"
+      ],
+      [
+        "a",
+        "in",
+        "in",
+        "g"
+      ],
+      [
+        "e",
+        "n",
+        "i",
+        "z"
+      ],
+      [
+        "h",
+        "a",
+        "r",
+        "d"
+      ],
+      [
+        "Ġ",
+        "f",
+        "o",
+        "r"
+      ],
+      [
+        "Ġ",
+        "t",
+        "r",
+        "aining"
+      ],
+      [
+        "Ġ",
+        "t",
+        "w",
+        "o"
+      ],
+      [
+        "Vali",
+        "d",
+        "atio",
+        "n"
+      ],
+      [
+        "Ġs",
+        "entence"
+      ],
+      [
+        "o",
+        "k",
+        "eniz"
+      ],
+      [
+        "-",
+        "l",
+        "e",
+        "v"
+      ],
+      [
+        "A",
+        "n",
+        "o",
+        "t"
+      ],
+      [
+        "B",
+        "y",
+        "t",
+        "e"
+      ],
+      [
+        "H",
+        "e",
+        "l",
+        "l"
+      ],
+      [
+        "S",
+        "m",
+        "a",
+        "l"
+      ],
+      [
+        "T",
+        "okeniz",
+        "e",
+        "r"
+      ],
+      [
+        "a",
+        "m",
+        "p",
+        "l"
+      ],
+      [
+        "b",
+        "u",
+        "g",
+        "g"
+      ],
+      [
+        "c",
+        "o",
+        "r",
+        "p"
+      ],
+      [
+        "d",
+        "a",
+        "t",
+        "a"
+      ],
+      [
+        "d",
+        "e",
+        "bugg",
+        "in"
+      ],
+      [
+        "e",
+        "t",
+        "okeniz",
+        "atio"
+      ],
+      [
+        "f",
+        "r",
+        "o",
+        "m"
+      ],
+      [
+        "o",
+        "r",
+        "l",
+        "d"
+      ],
+      [
+        "p",
+        "l",
+        "i",
+        "t"
+      ],
+      [
+        "p",
+        "r",
+        "etokenizatio",
+        "n"
+      ],
+      [
+        "Ġ",
+        "a",
+        "n",
+        "d"
+      ],
+      [
+        "Ġ",
+        "l",
+        "in",
+        "e"
+      ],
+      [
+        "Ġ",
+        "corp",
+        "u",
+        "s"
+      ],
+      [
+        "Anot",
+        "h",
+        "e",
+        "r"
+      ],
+      [
+        "T",
+        "est"
+      ],
+      [
+        "Ġs",
+        "hard"
+      ],
+      [
+        "Ġ",
+        "t",
+        "est"
+      ],
+      [
+        "Ġ",
+        "w",
+        "orld"
+      ],
+      [
+        "Ġ",
+        "debuggin",
+        "g"
+      ],
+      [
+        "Ġs",
+        "ampl",
+        "e"
+      ],
+      [
+        "-lev",
+        "e",
+        "l"
+      ],
+      [
+        "Ġ",
+        "A"
+      ],
+      [
+        "Ġ",
+        "data"
+      ],
+      [
+        "Ġ",
+        "from"
+      ],
+      [
+        "Ġ",
+        "pretokenization"
+      ],
+      [
+        "Ġs",
+        "plit"
+      ],
+      [
+        "Hell",
+        "o"
+      ],
+      [
+        "Smal",
+        "l"
+      ]
+    ]
+  }
+}

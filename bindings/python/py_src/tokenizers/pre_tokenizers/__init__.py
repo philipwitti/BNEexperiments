@@ -11,6 +11,7 @@ Metaspace = pre_tokenizers.Metaspace
 Punctuation = pre_tokenizers.Punctuation
 Sequence = pre_tokenizers.Sequence
 Split = pre_tokenizers.Split
+SplitByteLevel = pre_tokenizers.SplitByteLevel
 UnicodeScripts = pre_tokenizers.UnicodeScripts
 Whitespace = pre_tokenizers.Whitespace
 WhitespaceSplit = pre_tokenizers.WhitespaceSplit
